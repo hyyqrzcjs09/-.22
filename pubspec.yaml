@@ -14,7 +14,7 @@ dependencies:
   go_router: ^14.6.2
   hive: ^2.2.3
   image_picker: ^1.1.2
-  nfc_manager: ^3.5.0
+  nfc_manager: ^4.2.1
   photo_manager: ^3.6.3
   photo_view: ^0.15.0
   riverpod: ^2.6.1
