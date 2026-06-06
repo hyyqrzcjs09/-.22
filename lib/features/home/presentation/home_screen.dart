@@ -1,21 +1,23 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../photos/data/local_photo_repository.dart';
 import '../../photos/presentation/photo_map_view.dart';
+import '../../profile/application/user_settings.dart';
 
 enum _PlaceMode { map, stack, detail }
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   _PlaceMode _mode = _PlaceMode.map;
   PhotoAreaGroup? _selectedPlace;
 
@@ -23,6 +25,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(userSettingsProvider);
+    final selectedMode = _placeModeFromSetting(settings.albumDisplayMode);
+    final selectedPlace = _selectedPlace;
+
     return AppScaffold(
       selectedIndex: 0,
       title: '地点链接',
@@ -33,25 +39,35 @@ class _HomeScreenState extends State<HomeScreen> {
             duration: const Duration(milliseconds: 260),
             child: switch (_mode) {
               _PlaceMode.map => PhotoMapView(
+                  key: const ValueKey('map'),
                   showStatusPanel: false,
                   onPlaceSelected: _openPlace,
                 ),
-              _PlaceMode.stack => const _PlaceStackView(),
-              _PlaceMode.detail => const _PlaceDetailView(),
+              _PlaceMode.stack => selectedPlace == null
+                  ? const SizedBox.shrink()
+                  : _PlaceStackView(
+                      key: ValueKey('stack-${selectedPlace.hashCode}'),
+                      backgroundColor: settings.albumBackgroundColor,
+                      place: selectedPlace,
+                    ),
+              _PlaceMode.detail => selectedPlace == null
+                  ? const SizedBox.shrink()
+                  : _PlaceDetailView(
+                      key: ValueKey('detail-${selectedPlace.hashCode}'),
+                      backgroundColor: settings.albumBackgroundColor,
+                      place: selectedPlace,
+                    ),
             },
           ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
               child: _PlaceTopBar(
+                displayMode: settings.albumDisplayMode,
                 hasSelectedPlace: _hasSelectedPlace,
                 mode: _mode,
+                place: selectedPlace,
                 onBack: _returnToMap,
-                onToggle: () => setState(
-                  () => _mode = _mode == _PlaceMode.stack
-                      ? _PlaceMode.detail
-                      : _PlaceMode.stack,
-                ),
               ),
             ),
           ),
@@ -60,8 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 18,
             bottom: 20,
             child: _PlaceModeBar(
+              displayMode: settings.albumDisplayMode,
               hasSelectedPlace: _hasSelectedPlace,
               mode: _mode,
+              selectedPlaceMode: selectedMode,
               onChanged: _changePlaceMode,
             ),
           ),
@@ -71,9 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openPlace(PhotoAreaGroup group) {
+    final displayMode = ref.read(userSettingsProvider).albumDisplayMode;
     setState(() {
       _selectedPlace = group;
-      _mode = _PlaceMode.detail;
+      _mode = _placeModeFromSetting(displayMode);
     });
   }
 
@@ -94,22 +113,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+_PlaceMode _placeModeFromSetting(AlbumDisplayMode mode) {
+  return switch (mode) {
+    AlbumDisplayMode.detail => _PlaceMode.detail,
+    AlbumDisplayMode.stack => _PlaceMode.stack,
+  };
+}
+
 class _PlaceTopBar extends StatelessWidget {
   const _PlaceTopBar({
+    required this.displayMode,
     required this.hasSelectedPlace,
     required this.mode,
     required this.onBack,
-    required this.onToggle,
+    this.place,
   });
 
+  final AlbumDisplayMode displayMode;
   final bool hasSelectedPlace;
   final _PlaceMode mode;
   final VoidCallback onBack;
-  final VoidCallback onToggle;
+  final PhotoAreaGroup? place;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final title =
+        hasSelectedPlace && place != null ? place!.headerLabel : '地点链接 · 漫游地图';
 
     return Row(
       children: [
@@ -134,7 +164,7 @@ class _PlaceTopBar extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
             child: Text(
-              hasSelectedPlace ? 'Edinburgh · 8 张照片' : '地点链接 · 漫游地图',
+              title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -143,12 +173,20 @@ class _PlaceTopBar extends StatelessWidget {
         ),
         const Spacer(),
         if (hasSelectedPlace)
-          _GlassIconButton(
-            tooltip: mode == _PlaceMode.detail ? '照片堆叠' : '地点详情',
-            icon: mode == _PlaceMode.detail
-                ? Icons.grid_view_rounded
-                : Icons.map_outlined,
-            onPressed: onToggle,
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color:
+                  Theme.of(context).colorScheme.surface.withValues(alpha: 0.72),
+              shape: BoxShape.circle,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Icon(
+                displayMode == AlbumDisplayMode.detail
+                    ? Icons.grid_view_rounded
+                    : Icons.folder_rounded,
+              ),
+            ),
           )
         else
           const SizedBox(width: 48),
@@ -158,11 +196,27 @@ class _PlaceTopBar extends StatelessWidget {
 }
 
 class _PlaceStackView extends StatelessWidget {
-  const _PlaceStackView();
+  const _PlaceStackView({
+    required this.backgroundColor,
+    required this.place,
+    super.key,
+  });
+
+  final Color backgroundColor;
+  final PhotoAreaGroup place;
 
   @override
   Widget build(BuildContext context) {
-    return const _PlaceBackdrop(
+    final cards = place.items.take(4).toList();
+    final layouts = const [
+      (angle: -0.24, offset: Offset(-58, 34)),
+      (angle: -0.11, offset: Offset(-20, -4)),
+      (angle: 0.15, offset: Offset(42, -52)),
+      (angle: -0.05, offset: Offset(36, 42)),
+    ];
+
+    return _PlaceBackdrop(
+      backgroundColor: backgroundColor,
       child: Center(
         child: SizedBox(
           width: 310,
@@ -171,27 +225,14 @@ class _PlaceStackView extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              _PolaroidCard(
-                angle: -0.24,
-                offset: Offset(-58, 34),
-                colors: [Color(0xFF5DAE79), Color(0xFFBFE8C0)],
-              ),
-              _PolaroidCard(
-                angle: -0.11,
-                offset: Offset(-20, -4),
-                colors: [Color(0xFFD7B48C), Color(0xFFF6E8D5)],
-              ),
-              _PolaroidCard(
-                angle: 0.15,
-                offset: Offset(42, -52),
-                colors: [Color(0xFFF08825), Color(0xFFFFD6A1)],
-              ),
-              _PolaroidCard(
-                angle: -0.05,
-                offset: Offset(36, 42),
-                colors: [Color(0xFF5B8068), Color(0xFFE8F0F2)],
-                foregroundIcon: Icons.water,
-              ),
+              for (var index = 0; index < cards.length; index++)
+                _PolaroidCard(
+                  angle: layouts[index % layouts.length].angle,
+                  offset: layouts[index % layouts.length].offset,
+                  colors: _paletteForItem(cards[index], index),
+                  foregroundIcon: _iconForAreaType(cards[index].areaType),
+                  label: cards[index].title,
+                ),
             ],
           ),
         ),
@@ -201,13 +242,22 @@ class _PlaceStackView extends StatelessWidget {
 }
 
 class _PlaceDetailView extends StatelessWidget {
-  const _PlaceDetailView();
+  const _PlaceDetailView({
+    required this.backgroundColor,
+    required this.place,
+    super.key,
+  });
+
+  final Color backgroundColor;
+  final PhotoAreaGroup place;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final featured = place.items.first;
 
     return _PlaceBackdrop(
+      backgroundColor: backgroundColor,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -229,11 +279,11 @@ class _PlaceDetailView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AspectRatio(
+                  AspectRatio(
                     aspectRatio: 1.18,
                     child: _MemoryImageBlock(
-                      colors: [Color(0xFF4C7F59), Color(0xFFE8EEF2)],
-                      icon: Icons.landscape_outlined,
+                      colors: _paletteForItem(featured, 0),
+                      icon: _iconForAreaType(featured.areaType),
                     ),
                   ),
                   Padding(
@@ -245,7 +295,7 @@ class _PlaceDetailView extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                'Edinburgh',
+                                place.placeTitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: textTheme.headlineSmall?.copyWith(
@@ -254,12 +304,15 @@ class _PlaceDetailView extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const _PhotoCountBadge(),
+                            _PhotoCountBadge(
+                              current: 1,
+                              total: place.photoCount,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          '2023/6/12 16:20',
+                          place.formattedLatestDate,
                           style: textTheme.titleMedium?.copyWith(
                             color: const Color(0xFF6B7280),
                             fontWeight: FontWeight.w600,
@@ -267,10 +320,17 @@ class _PlaceDetailView extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '50.7192, -1.8808',
+                          place.coordinateLabel,
                           style: textTheme.bodyLarge?.copyWith(
                             color: const Color(0xFF9CA3AF),
                             fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          featured.title,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xFF6B7280),
                           ),
                         ),
                       ],
@@ -287,18 +347,26 @@ class _PlaceDetailView extends StatelessWidget {
 }
 
 class _PlaceBackdrop extends StatelessWidget {
-  const _PlaceBackdrop({required this.child});
+  const _PlaceBackdrop({
+    required this.backgroundColor,
+    required this.child,
+  });
 
+  final Color backgroundColor;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFD5D7DA), Color(0xFFBFC2C6), Color(0xFFEAE9E5)],
+          colors: [
+            backgroundColor,
+            backgroundColor.withValues(alpha: 0.72),
+            const Color(0xFFEAE9E5),
+          ],
         ),
       ),
       child: SizedBox.expand(child: child),
@@ -308,14 +376,18 @@ class _PlaceBackdrop extends StatelessWidget {
 
 class _PlaceModeBar extends StatelessWidget {
   const _PlaceModeBar({
+    required this.displayMode,
     required this.hasSelectedPlace,
     required this.mode,
     required this.onChanged,
+    required this.selectedPlaceMode,
   });
 
+  final AlbumDisplayMode displayMode;
   final bool hasSelectedPlace;
   final _PlaceMode mode;
   final ValueChanged<_PlaceMode> onChanged;
+  final _PlaceMode selectedPlaceMode;
 
   @override
   Widget build(BuildContext context) {
@@ -345,20 +417,15 @@ class _PlaceModeBar extends StatelessWidget {
                   selected: mode == _PlaceMode.map,
                   onTap: () => onChanged(_PlaceMode.map),
                 ),
-                if (hasSelectedPlace) ...[
+                if (hasSelectedPlace)
                   _PlaceModeButton(
-                    icon: Icons.grid_view_rounded,
-                    label: '相册',
-                    selected: mode == _PlaceMode.detail,
-                    onTap: () => onChanged(_PlaceMode.detail),
+                    icon: displayMode == AlbumDisplayMode.detail
+                        ? Icons.grid_view_rounded
+                        : Icons.folder_rounded,
+                    label: displayMode.label,
+                    selected: mode == selectedPlaceMode,
+                    onTap: () => onChanged(selectedPlaceMode),
                   ),
-                  _PlaceModeButton(
-                    icon: Icons.folder_rounded,
-                    label: '相簿',
-                    selected: mode == _PlaceMode.stack,
-                    onTap: () => onChanged(_PlaceMode.stack),
-                  ),
-                ],
               ],
             ),
           ),
@@ -448,12 +515,14 @@ class _PolaroidCard extends StatelessWidget {
     required this.colors,
     required this.offset,
     this.foregroundIcon = Icons.photo_outlined,
+    this.label,
   });
 
   final double angle;
   final List<Color> colors;
   final IconData foregroundIcon;
   final Offset offset;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -478,7 +547,25 @@ class _PolaroidCard extends StatelessWidget {
             height: 220,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 42),
-              child: _MemoryImageBlock(colors: colors, icon: foregroundIcon),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _MemoryImageBlock(
+                      colors: colors,
+                      icon: foregroundIcon,
+                    ),
+                  ),
+                  if (label != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      label!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -517,7 +604,13 @@ class _MemoryImageBlock extends StatelessWidget {
 }
 
 class _PhotoCountBadge extends StatelessWidget {
-  const _PhotoCountBadge();
+  const _PhotoCountBadge({
+    required this.current,
+    required this.total,
+  });
+
+  final int current;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
@@ -529,7 +622,7 @@ class _PhotoCountBadge extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         child: Text(
-          '8 / 8',
+          '$current / $total',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
@@ -538,4 +631,23 @@ class _PhotoCountBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+List<Color> _paletteForItem(PhotoMapItem item, int index) {
+  const palettes = [
+    [Color(0xFF5DAE79), Color(0xFFBFE8C0)],
+    [Color(0xFFD7B48C), Color(0xFFF6E8D5)],
+    [Color(0xFFF08825), Color(0xFFFFD6A1)],
+    [Color(0xFF5B8068), Color(0xFFE8F0F2)],
+  ];
+  return palettes[(item.title.hashCode + index).abs() % palettes.length];
+}
+
+IconData _iconForAreaType(PhotoAreaType areaType) {
+  return switch (areaType) {
+    PhotoAreaType.school => Icons.school_outlined,
+    PhotoAreaType.attraction => Icons.attractions_outlined,
+    PhotoAreaType.life => Icons.apartment_outlined,
+    PhotoAreaType.other => Icons.landscape_outlined,
+  };
 }

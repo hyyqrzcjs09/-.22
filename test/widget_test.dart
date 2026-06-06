@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_link_vr/app/photo_link_vr_app.dart';
@@ -7,7 +8,16 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: PhotoLinkVrApp()));
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.textContaining('MAPBOX_ACCESS_TOKEN'), findsOneWidget);
+    expect(find.text('账号登录'), findsOneWidget);
+    expect(find.text('手机号'), findsOneWidget);
+    expect(find.text('验证码'), findsOneWidget);
+    expect(find.text('相册背景颜色'), findsOneWidget);
+
+    await tester.tap(find.text('登录并分配 ID'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 800));
+
     expect(find.text('地点链接'), findsOneWidget);
     expect(find.text('日期'), findsOneWidget);
     expect(find.text('地点链接 · 漫游地图'), findsOneWidget);
@@ -22,7 +32,12 @@ void main() {
     await tester.tap(find.text('我的'));
     await tester.pumpAndSettle();
 
-    expect(find.text('我的照片记忆'), findsOneWidget);
+    expect(find.textContaining('PLV-'), findsOneWidget);
+    expect(find.text('地点漫游后的展示形式'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -320));
+    await tester.pumpAndSettle();
+
     expect(find.text('本地照片权限'), findsOneWidget);
   });
 }

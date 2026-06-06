@@ -52,6 +52,33 @@ class PhotoAreaGroup {
   final List<PhotoMapItem> items;
 
   bool get isCluster => items.length >= 2;
+
+  String get placeTitle => areaType.label;
+
+  int get photoCount => items.length;
+
+  String get headerLabel => '$placeTitle · $photoCount 张照片';
+
+  String get coordinateLabel =>
+      '${center.latitude.toStringAsFixed(4)}, ${center.longitude.toStringAsFixed(4)}';
+
+  DateTime? get latestCapturedAt {
+    final dates = items.map((item) => item.createdAt).whereType<DateTime>();
+    if (dates.isEmpty) {
+      return null;
+    }
+    return dates.reduce((a, b) => a.isAfter(b) ? a : b);
+  }
+
+  String get formattedLatestDate {
+    final date = latestCapturedAt;
+    if (date == null) {
+      return '拍摄时间待同步';
+    }
+    return '${date.year}/${date.month}/${date.day} '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 List<PhotoAreaGroup> buildPhotoAreaGroups(

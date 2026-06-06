@@ -30,16 +30,16 @@ void main() {
     await tester.tap(find.text('学校'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Edinburgh · 8 张照片'), findsOneWidget);
+    expect(find.text('学校 · 2 张照片'), findsOneWidget);
     expect(find.text('相册'), findsOneWidget);
-    expect(find.text('相簿'), findsOneWidget);
+    expect(find.text('相簿'), findsNothing);
 
     await tester.tap(find.text('相册'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Edinburgh'), findsOneWidget);
-    expect(find.text('8 / 8'), findsOneWidget);
-    expect(find.text('50.7192, -1.8808'), findsOneWidget);
+    expect(find.text('学校'), findsOneWidget);
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.text('31.2990, 121.5036'), findsOneWidget);
 
     await tester.tap(find.text('漫游地图'));
     await tester.pumpAndSettle();
@@ -51,10 +51,8 @@ void main() {
     await tester.tap(find.text('学校'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('相簿'));
-    await tester.pumpAndSettle();
-
-    expect(find.byTooltip('地点详情'), findsOneWidget);
+    expect(find.text('相册'), findsOneWidget);
+    expect(find.text('相簿'), findsNothing);
   });
 }
 

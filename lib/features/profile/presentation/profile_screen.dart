@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/album_color_picker.dart';
+import '../../../shared/widgets/album_display_mode_selector.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../application/user_settings.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(userSettingsProvider);
     final colors = Theme.of(context).colorScheme;
 
     return AppScaffold(
@@ -17,7 +22,7 @@ class ProfileScreen extends StatelessWidget {
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
-              color: colors.surfaceContainerHighest,
+              color: settings.albumBackgroundColor,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Padding(
@@ -36,15 +41,15 @@ class ProfileScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '我的照片记忆',
+                          settings.userId ?? '未分配 ID',
                           style:
                               Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w900,
                                   ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '照片权限、NFC 分享、多人相册和 VR 回忆设置',
+                          settings.phoneNumber ?? '手机号验证码登录后自动分配 ID',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
@@ -53,6 +58,19 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          _SettingsPanel(
+            title: '相册背景颜色',
+            subtitle: '自由设计相册背景色，地点漫游页面会同步使用。',
+            child: AlbumColorPicker(selected: settings.albumBackgroundColor),
+          ),
+          const SizedBox(height: 12),
+          _SettingsPanel(
+            title: '地点漫游后的展示形式',
+            subtitle: '点击地图地点后，仅展示所选形式。',
+            child:
+                AlbumDisplayModeSelector(selected: settings.albumDisplayMode),
           ),
           const SizedBox(height: 16),
           const _ProfileActionTile(
@@ -71,6 +89,46 @@ class ProfileScreen extends StatelessWidget {
             subtitle: '管理视频生成、过渡和播放偏好',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsPanel extends StatelessWidget {
+  const _SettingsPanel({
+    required this.child,
+    required this.title,
+    this.subtitle,
+  });
+
+  final Widget child;
+  final String? subtitle;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+            ],
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
       ),
     );
   }
