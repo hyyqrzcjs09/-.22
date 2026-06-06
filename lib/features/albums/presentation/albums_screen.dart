@@ -83,7 +83,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 220,
-                mainAxisExtent: 136,
+                mainAxisExtent: 182,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
               ),
@@ -369,8 +369,16 @@ class _EmptyCategoryPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: colors.outlineVariant),
         borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 18,
+            color: Color(0x12000000),
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(22),
@@ -413,16 +421,10 @@ class _AlbumsOverviewPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primaryContainer.withValues(alpha: 0.78),
-            colors.tertiaryContainer.withValues(alpha: 0.44),
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colors.outlineVariant),
+        border:
+            Border.all(color: colors.outlineVariant.withValues(alpha: 0.72)),
         boxShadow: const [
           BoxShadow(
             blurRadius: 18,
@@ -437,7 +439,7 @@ class _AlbumsOverviewPanel extends StatelessWidget {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: colors.surface.withValues(alpha: 0.72),
+                color: colors.primaryContainer.withValues(alpha: 0.76),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Padding(
@@ -627,9 +629,16 @@ class _ArMovingPhotoPreviewState extends State<_ArMovingPhotoPreview>
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.outlineVariant),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 20,
+            color: Color(0x12000000),
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: SizedBox(
         height: 220,
@@ -644,14 +653,7 @@ class _ArMovingPhotoPreviewState extends State<_ArMovingPhotoPreview>
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          colors.primaryContainer.withValues(alpha: 0.6),
-                          colors.tertiaryContainer.withValues(alpha: 0.42),
-                        ],
-                      ),
+                      color: colors.primaryContainer.withValues(alpha: 0.28),
                     ),
                   ),
                 ),
@@ -700,8 +702,9 @@ class _MovingArPhotoCard extends StatelessWidget {
         scale: scale,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.surface,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colors.outlineVariant),
             boxShadow: const [
               BoxShadow(
                 blurRadius: 18,
@@ -806,9 +809,16 @@ class _TriRingSocialPanel extends ConsumerWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.outlineVariant),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 20,
+            color: Color(0x12000000),
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -890,7 +900,7 @@ class _TriRingAgentInsight extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.72),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.outlineVariant),
       ),
@@ -1150,11 +1160,9 @@ class _TriRingCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.86),
+        color: Colors.white,
         shape: BoxShape.circle,
         border: Border.all(color: borderColor, width: 7),
         boxShadow: const [
@@ -1217,15 +1225,19 @@ class _CategoryAlbumCard extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Material(
-      color: colors.surfaceContainerHighest,
+      color: Colors.white,
+      elevation: 1.5,
       borderRadius: BorderRadius.circular(8),
+      shadowColor: const Color(0x1A000000),
+      surfaceTintColor: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: colors.outlineVariant),
+            border: Border.all(
+                color: colors.outlineVariant.withValues(alpha: 0.74)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -1234,7 +1246,20 @@ class _CategoryAlbumCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(album.icon, size: 34, color: colors.primary),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.primaryContainer.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          album.icon,
+                          size: 24,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
                     const Spacer(),
                     if (album.isCollaborative)
                       Icon(
@@ -1272,6 +1297,8 @@ class _CategoryAlbumCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                _AlbumMiniPhotoStrip(photoCount: album.photos.length),
                 const Spacer(),
                 Text(
                   album.name,
@@ -1292,6 +1319,78 @@ class _CategoryAlbumCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AlbumMiniPhotoStrip extends StatelessWidget {
+  const _AlbumMiniPhotoStrip({required this.photoCount});
+
+  final int photoCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    const previewColors = [
+      Color(0xFFDDEFEA),
+      Color(0xFFEFE4DD),
+      Color(0xFFDDE5EF),
+    ];
+
+    return SizedBox(
+      height: 38,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final visibleCount = math.min(
+            photoCount,
+            constraints.maxWidth < 170 ? 2 : 3,
+          );
+          final remainingCount = photoCount - visibleCount;
+
+          return Row(
+            children: [
+              for (var index = 0; index < visibleCount; index++)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: previewColors[index],
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: SizedBox(
+                      width: 38,
+                      height: 38,
+                      child: Icon(
+                        Icons.photo_outlined,
+                        size: 17,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              if (remainingCount > 0)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer.withValues(alpha: 0.64),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    child: Text(
+                      '+$remainingCount',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: colors.onPrimaryContainer,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1353,84 +1452,111 @@ class _AlbumDetailView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          children: [
-            IconButton(
-              tooltip: '返回比邻环',
-              onPressed: onBack,
-              icon: const Icon(Icons.arrow_back),
-            ),
-            Icon(album.icon, color: colors.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    album.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colors.outlineVariant),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 18,
+                color: Color(0x12000000),
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: '返回比邻环',
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(album.icon, color: colors.onPrimaryContainer),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _AlbumOwnerBadge(count: album.ownerCount),
                       Text(
-                        album.isCollaborative
-                            ? '多人相册'
-                            : '${album.photos.length} 张照片',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
+                        album.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _AlbumOwnerBadge(count: album.ownerCount),
+                          Text(
+                            album.isCollaborative
+                                ? '多人相册'
+                                : '${album.photos.length} 张照片',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                    ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            PopupMenuButton<_AlbumDetailAction>(
-              tooltip: '相册详情功能',
-              icon: const Icon(Icons.add),
-              onSelected: (action) {
-                switch (action) {
-                  case _AlbumDetailAction.nfc:
-                    _showAlbumNfcSheet(context);
-                  case _AlbumDetailAction.arReplay:
-                    onStartArReplay(album);
-                  case _AlbumDetailAction.addPhoto:
-                    onAddPhoto(album);
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: _AlbumDetailAction.nfc,
-                  child: _AlbumActionMenuItem(
-                    icon: Icons.nfc_outlined,
-                    label: 'NFC 分享',
-                  ),
                 ),
-                PopupMenuItem(
-                  value: _AlbumDetailAction.arReplay,
-                  child: _AlbumActionMenuItem(
-                    icon: Icons.view_in_ar,
-                    label: 'AR 同场景重现',
-                  ),
-                ),
-                PopupMenuItem(
-                  value: _AlbumDetailAction.addPhoto,
-                  child: _AlbumActionMenuItem(
-                    icon: Icons.add_photo_alternate_outlined,
-                    label: '添加照片',
-                  ),
+                PopupMenuButton<_AlbumDetailAction>(
+                  tooltip: '相册详情功能',
+                  icon: const Icon(Icons.add),
+                  onSelected: (action) {
+                    switch (action) {
+                      case _AlbumDetailAction.nfc:
+                        _showAlbumNfcSheet(context);
+                      case _AlbumDetailAction.arReplay:
+                        onStartArReplay(album);
+                      case _AlbumDetailAction.addPhoto:
+                        onAddPhoto(album);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: _AlbumDetailAction.nfc,
+                      child: _AlbumActionMenuItem(
+                        icon: Icons.nfc_outlined,
+                        label: 'NFC 分享',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _AlbumDetailAction.arReplay,
+                      child: _AlbumActionMenuItem(
+                        icon: Icons.view_in_ar,
+                        label: 'AR 同场景重现',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _AlbumDetailAction.addPhoto,
+                      child: _AlbumActionMenuItem(
+                        icon: Icons.add_photo_alternate_outlined,
+                        label: '添加照片',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
         const SizedBox(height: 16),
         for (final group in groupedPhotos.entries) ...[
@@ -1510,9 +1636,17 @@ class _AlbumPhotoTile extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colors.outlineVariant),
+        border:
+            Border.all(color: colors.outlineVariant.withValues(alpha: 0.74)),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 14,
+            color: Color(0x10000000),
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -1522,7 +1656,7 @@ class _AlbumPhotoTile extends StatelessWidget {
             Expanded(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colors.primaryContainer,
+                  color: colors.primaryContainer.withValues(alpha: 0.62),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(

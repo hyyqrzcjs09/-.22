@@ -22,14 +22,7 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  settings.albumBackgroundColor,
-                  colors.primaryContainer.withValues(alpha: 0.58),
-                ],
-              ),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: colors.outlineVariant),
               boxShadow: const [
@@ -69,6 +62,14 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: settings.albumBackgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: const SizedBox(width: 32, height: 32),
                   ),
                 ],
               ),
@@ -183,7 +184,7 @@ class _SettingsPanel extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: colors.surface.withValues(alpha: 0.88),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: colors.outlineVariant),
         ),
@@ -230,7 +231,7 @@ class _ProfileActionTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: colors.surface.withValues(alpha: 0.88),
+        color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: colors.outlineVariant),

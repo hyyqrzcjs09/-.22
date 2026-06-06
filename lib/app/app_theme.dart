@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
   static const _seedColor = Color(0xFF287C78);
+  static const _white = Color(0xFFFFFFFF);
+  static const _softWhite = Color(0xFFFBFCFC);
 
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
@@ -13,7 +15,7 @@ abstract final class AppTheme {
 
     return ThemeData(
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: const Color(0xFFF8FAF8),
+      scaffoldBackgroundColor: _white,
       textTheme: textTheme.copyWith(
         headlineLarge: textTheme.headlineLarge?.copyWith(
           fontWeight: FontWeight.w900,
@@ -28,7 +30,7 @@ abstract final class AppTheme {
       useMaterial3: true,
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colorScheme.surface,
+        color: _white,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -49,7 +51,7 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerLowest,
+        fillColor: _softWhite,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: colorScheme.outlineVariant),
@@ -64,14 +66,14 @@ abstract final class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surface,
-        indicatorColor: colorScheme.primaryContainer,
+        backgroundColor: _white,
+        indicatorColor: colorScheme.primaryContainer.withValues(alpha: 0.84),
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: colorScheme.surface,
+        color: _white,
         elevation: 10,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -82,7 +84,7 @@ abstract final class AppTheme {
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
-        backgroundColor: colorScheme.surface.withValues(alpha: 0.94),
+        backgroundColor: _white,
         foregroundColor: colorScheme.onSurface,
         titleTextStyle: textTheme.titleLarge?.copyWith(
           color: colorScheme.onSurface,

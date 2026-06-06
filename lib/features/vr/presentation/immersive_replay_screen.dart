@@ -140,9 +140,16 @@ class _MemoryVideoPreviewCardState extends State<_MemoryVideoPreviewCard> {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.outlineVariant),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 18,
+            color: Color(0x12000000),
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),

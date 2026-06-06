@@ -17,8 +17,16 @@ class StatusSummaryTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 14,
+            color: Color(0x10000000),
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -24,22 +24,12 @@ class AppScaffold extends StatelessWidget {
     return Scaffold(
       appBar: showAppBar ? AppBar(title: Text(title)) : null,
       body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colors.surfaceContainerLowest,
-              colors.surface,
-              colors.surfaceContainerLow.withValues(alpha: 0.68),
-            ],
-          ),
-        ),
+        decoration: const BoxDecoration(color: Colors.white),
         child: SizedBox.expand(child: child),
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
-          color: colors.surface.withValues(alpha: 0.98),
+          color: Colors.white,
           border: Border(
             top:
                 BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
