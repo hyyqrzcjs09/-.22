@@ -1559,30 +1559,11 @@ class _AlbumDetailView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        for (final group in groupedPhotos.entries) ...[
-          Text(
-            group.key,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+        for (final group in groupedPhotos.entries)
+          _AlbumTimelineGroup(
+            dateLabel: group.key,
+            photos: group.value,
           ),
-          const SizedBox(height: 10),
-          GridView.builder(
-            itemCount: group.value.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 180,
-              mainAxisExtent: 126,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-            ),
-            itemBuilder: (context, index) {
-              return _AlbumPhotoTile(photo: group.value[index]);
-            },
-          ),
-          const SizedBox(height: 18),
-        ],
       ],
     );
   }
@@ -1622,6 +1603,138 @@ class _AlbumDetailView extends StatelessWidget {
     if (action != null) {
       onNfcAction(album, action);
     }
+  }
+}
+
+class _AlbumTimelineGroup extends StatelessWidget {
+  const _AlbumTimelineGroup({
+    required this.dateLabel,
+    required this.photos,
+  });
+
+  final String dateLabel;
+  final List<_AlbumPhoto> photos;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 14.0;
+        const tileHeight = 126.0;
+        const spacing = 10.0;
+        final timelineWidth = constraints.maxWidth < 560 ? 110.0 : 144.0;
+        final gridWidth = math.max(
+          180.0,
+          constraints.maxWidth - timelineWidth - gap,
+        );
+        final columns = math.max(1, (gridWidth / 180).floor());
+        final rows = (photos.length / columns).ceil();
+        final gridHeight = rows * tileHeight + math.max(0, rows - 1) * spacing;
+        final groupHeight = math.max(gridHeight, 112.0);
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 22),
+          child: SizedBox(
+            height: groupHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: timelineWidth,
+                  height: groupHeight,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.outlineVariant,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const SizedBox(width: 2),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        top: 7,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: const [
+                              BoxShadow(
+                                blurRadius: 10,
+                                color: Color(0x1A000000),
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const SizedBox(width: 18, height: 18),
+                        ),
+                      ),
+                      Positioned(
+                        left: 28,
+                        right: 0,
+                        top: 0,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              dateLabel,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${photos.length} 张',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: colors.onSurfaceVariant,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: gap),
+                Expanded(
+                  child: SizedBox(
+                    height: gridHeight,
+                    child: GridView.builder(
+                      itemCount: photos.length,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisExtent: tileHeight,
+                        mainAxisSpacing: spacing,
+                        crossAxisSpacing: spacing,
+                      ),
+                      itemBuilder: (context, index) {
+                        return _AlbumPhotoTile(photo: photos[index]);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
