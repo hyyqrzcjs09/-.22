@@ -61,6 +61,7 @@ void main() {
     expect(find.text('2026年6月5日'), findsOneWidget);
     expect(find.text('2026年5月28日'), findsOneWidget);
     expect(find.text('家庭 照片 1'), findsOneWidget);
+    expect(find.text('所有权 1 人'), findsOneWidget);
     expect(find.byTooltip('相册详情功能'), findsOneWidget);
 
     await tester.tap(find.byTooltip('相册详情功能'));
@@ -88,6 +89,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('多人相册'), findsOneWidget);
+    expect(find.text('所有权 2 人'), findsOneWidget);
   });
 
   testWidgets('enables personal tri-ring social and selects photos',

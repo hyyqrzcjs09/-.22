@@ -248,6 +248,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
     setState(() {
       album.isCollaborative = true;
+      album.ownerCount = album.ownerCount < 2 ? 2 : album.ownerCount;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('「${album.name}」已设为多人相册')),
@@ -1314,13 +1315,21 @@ class _AlbumDetailView extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                   ),
-                  Text(
-                    album.isCollaborative
-                        ? '多人相册'
-                        : '${album.photos.length} 张照片',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _AlbumOwnerBadge(count: album.ownerCount),
+                      Text(
+                        album.isCollaborative
+                            ? '多人相册'
+                            : '${album.photos.length} 张照片',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1481,6 +1490,45 @@ class _AlbumPhotoTile extends StatelessWidget {
   }
 }
 
+class _AlbumOwnerBadge extends StatelessWidget {
+  const _AlbumOwnerBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.group_outlined,
+              color: colors.onSecondaryContainer,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '所有权 $count 人',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSecondaryContainer,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CategoryAlbum {
   _CategoryAlbum({
     required this.id,
@@ -1493,6 +1541,7 @@ class _CategoryAlbum {
   final IconData icon;
   bool isCollaborative = false;
   final String name;
+  int ownerCount = 1;
   final List<_AlbumPhoto> photos;
 
   String get sceneSignature {
