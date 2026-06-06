@@ -61,9 +61,24 @@ void main() {
     expect(find.text('2026年6月5日'), findsOneWidget);
     expect(find.text('2026年5月28日'), findsOneWidget);
     expect(find.text('家庭 照片 1'), findsOneWidget);
-    expect(find.byTooltip('NFC 分享'), findsOneWidget);
+    expect(find.byTooltip('相册详情功能'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('NFC 分享'));
+    await tester.tap(find.byTooltip('相册详情功能'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NFC 分享'), findsOneWidget);
+    expect(find.text('AR 同场景重现'), findsOneWidget);
+    expect(find.text('添加照片'), findsOneWidget);
+
+    await tester.tap(find.text('添加照片'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('5 张照片'), findsOneWidget);
+    expect(find.text('家庭 新照片 5'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('相册详情功能'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('NFC 分享'));
     await tester.pumpAndSettle();
 
     expect(find.text('仅用 NFC 分享该相册内容'), findsOneWidget);

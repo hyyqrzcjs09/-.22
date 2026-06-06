@@ -40,6 +40,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
             });
           },
           onNfcAction: _handleNfcAction,
+          onAddPhoto: _addPhotoToAlbum,
           onStartArReplay: _startArReplay,
         ),
       );
@@ -250,6 +251,25 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('「${album.name}」已设为多人相册')),
+    );
+  }
+
+  void _addPhotoToAlbum(_CategoryAlbum album) {
+    final nextIndex = album.photos.length + 1;
+    final now = DateTime.now();
+
+    setState(() {
+      album.photos.add(
+        _AlbumPhoto(
+          createdAt: now,
+          id: '${album.id}_photo_${nextIndex}_${now.microsecondsSinceEpoch}',
+          title: '${album.name} 新照片 $nextIndex',
+        ),
+      );
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已向「${album.name}」添加照片')),
     );
   }
 }
@@ -1244,16 +1264,24 @@ enum _AlbumCardAction {
   memoryVideo,
 }
 
+enum _AlbumDetailAction {
+  nfc,
+  arReplay,
+  addPhoto,
+}
+
 class _AlbumDetailView extends StatelessWidget {
   const _AlbumDetailView({
     required this.album,
     required this.onBack,
+    required this.onAddPhoto,
     required this.onNfcAction,
     required this.onStartArReplay,
   });
 
   final _CategoryAlbum album;
   final VoidCallback onBack;
+  final void Function(_CategoryAlbum album) onAddPhoto;
   final void Function(_CategoryAlbum album, _AlbumNfcAction action) onNfcAction;
   final void Function(_CategoryAlbum album) onStartArReplay;
 
@@ -1297,16 +1325,42 @@ class _AlbumDetailView extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton.filledTonal(
-              tooltip: 'AR 同场景重现',
-              onPressed: () => onStartArReplay(album),
-              icon: const Icon(Icons.view_in_ar),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: 'NFC 分享',
-              onPressed: () => _showAlbumNfcSheet(context),
-              icon: const Icon(Icons.nfc_outlined),
+            PopupMenuButton<_AlbumDetailAction>(
+              tooltip: '相册详情功能',
+              icon: const Icon(Icons.add),
+              onSelected: (action) {
+                switch (action) {
+                  case _AlbumDetailAction.nfc:
+                    _showAlbumNfcSheet(context);
+                  case _AlbumDetailAction.arReplay:
+                    onStartArReplay(album);
+                  case _AlbumDetailAction.addPhoto:
+                    onAddPhoto(album);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: _AlbumDetailAction.nfc,
+                  child: _AlbumActionMenuItem(
+                    icon: Icons.nfc_outlined,
+                    label: 'NFC 分享',
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _AlbumDetailAction.arReplay,
+                  child: _AlbumActionMenuItem(
+                    icon: Icons.view_in_ar,
+                    label: 'AR 同场景重现',
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _AlbumDetailAction.addPhoto,
+                  child: _AlbumActionMenuItem(
+                    icon: Icons.add_photo_alternate_outlined,
+                    label: '添加照片',
+                  ),
+                ),
+              ],
             ),
           ],
         ),
