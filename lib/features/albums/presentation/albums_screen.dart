@@ -1162,17 +1162,33 @@ class _CategoryAlbumCard extends StatelessWidget {
                         size: 20,
                         color: colors.secondary,
                       ),
-                    IconButton(
-                      tooltip: 'AR 同场景重现',
-                      onPressed: onStartArReplay,
-                      icon: const Icon(Icons.view_in_ar, size: 20),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    IconButton(
-                      tooltip: '剪辑回忆视频',
-                      onPressed: onCreateMemoryVideo,
-                      icon: const Icon(Icons.view_in_ar_outlined, size: 20),
-                      visualDensity: VisualDensity.compact,
+                    PopupMenuButton<_AlbumCardAction>(
+                      tooltip: '相册操作',
+                      icon: const Icon(Icons.more_horiz, size: 20),
+                      onSelected: (action) {
+                        switch (action) {
+                          case _AlbumCardAction.arReplay:
+                            onStartArReplay();
+                          case _AlbumCardAction.memoryVideo:
+                            onCreateMemoryVideo();
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: _AlbumCardAction.arReplay,
+                          child: _AlbumActionMenuItem(
+                            icon: Icons.view_in_ar,
+                            label: 'AR 同场景重现',
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: _AlbumCardAction.memoryVideo,
+                          child: _AlbumActionMenuItem(
+                            icon: Icons.view_in_ar_outlined,
+                            label: '剪辑回忆视频',
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1199,6 +1215,33 @@ class _CategoryAlbumCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AlbumActionMenuItem extends StatelessWidget {
+  const _AlbumActionMenuItem({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 10),
+        Text(label),
+      ],
+    );
+  }
+}
+
+enum _AlbumCardAction {
+  arReplay,
+  memoryVideo,
 }
 
 class _AlbumDetailView extends StatelessWidget {

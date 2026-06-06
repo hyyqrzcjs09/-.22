@@ -29,7 +29,9 @@ void main() {
     expect(find.text('4 张照片'), findsOneWidget);
     expect(find.text('还没有回忆视频'), findsNothing);
 
-    await tester.tap(find.byTooltip('AR 同场景重现').first);
+    await tester.tap(find.byTooltip('相册操作').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('AR 同场景重现'));
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('家庭 AR 同场景重现'), findsOneWidget);
@@ -39,7 +41,9 @@ void main() {
     await tester.tapAt(const Offset(10, 10));
     await tester.pump(const Duration(milliseconds: 500));
 
-    await tester.tap(find.byTooltip('剪辑回忆视频'));
+    await tester.tap(find.byTooltip('相册操作').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('剪辑回忆视频'));
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(MemoryVideoStore.instance.videos, hasLength(1));
