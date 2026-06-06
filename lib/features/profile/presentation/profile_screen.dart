@@ -100,8 +100,8 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const _ProfileActionTile(
             icon: Icons.view_in_ar_outlined,
-            route: AppRoutes.profileVrMemories,
-            title: 'VR 回忆设置',
+            route: AppRoutes.profileArMemories,
+            title: 'AR 回忆设置',
             subtitle: '管理视频生成、过渡和播放偏好',
           ),
         ],

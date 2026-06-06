@@ -18,7 +18,7 @@ abstract final class AppRoutes {
   static const profileAlbumDisplayMode = '/profile/album-display-mode';
   static const profilePhotoPermissions = '/profile/photo-permissions';
   static const profileNfcShares = '/profile/nfc-shares';
-  static const profileVrMemories = '/profile/vr-memories';
+  static const profileArMemories = '/profile/ar-memories';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -70,8 +70,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NfcShareRecordsDetailScreen(),
       ),
       GoRoute(
-        path: AppRoutes.profileVrMemories,
-        builder: (context, state) => const VrMemorySettingsDetailScreen(),
+        path: AppRoutes.profileArMemories,
+        builder: (context, state) => const ArMemorySettingsDetailScreen(),
       ),
     ],
   );

@@ -216,7 +216,7 @@ class _LoginBrandMark extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'PhotoLink VR',
+                'PhotoLink AR',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),

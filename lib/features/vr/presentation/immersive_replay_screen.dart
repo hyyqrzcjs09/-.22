@@ -6,7 +6,7 @@ import '../application/memory_video_store.dart';
 
 class MemoryVideoSection extends StatelessWidget {
   const MemoryVideoSection({
-    this.emptyMessage = '点击相册右上角的 VR 图标，即可把相册内容剪辑成视频并在这里直接播放。',
+    this.emptyMessage = '点击相册右上角的 AR 图标，即可把相册内容剪辑成视频并在这里直接播放。',
     super.key,
   });
 

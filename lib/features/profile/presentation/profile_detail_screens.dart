@@ -275,16 +275,16 @@ class NfcShareRecordsDetailScreen extends StatelessWidget {
   }
 }
 
-class VrMemorySettingsDetailScreen extends StatefulWidget {
-  const VrMemorySettingsDetailScreen({super.key});
+class ArMemorySettingsDetailScreen extends StatefulWidget {
+  const ArMemorySettingsDetailScreen({super.key});
 
   @override
-  State<VrMemorySettingsDetailScreen> createState() =>
-      _VrMemorySettingsDetailScreenState();
+  State<ArMemorySettingsDetailScreen> createState() =>
+      _ArMemorySettingsDetailScreenState();
 }
 
-class _VrMemorySettingsDetailScreenState
-    extends State<VrMemorySettingsDetailScreen> {
+class _ArMemorySettingsDetailScreenState
+    extends State<ArMemorySettingsDetailScreen> {
   var _quality = '1080p';
   var _transition = '淡入';
   var _duration = 0.65;
@@ -296,7 +296,7 @@ class _VrMemorySettingsDetailScreenState
   Widget build(BuildContext context) {
     return AppScaffold(
       selectedIndex: 2,
-      title: 'VR 回忆设置',
+      title: 'AR 回忆设置',
       child: _DetailList(
         children: [
           _HeroPanel(
@@ -418,7 +418,7 @@ class _VrMemorySettingsDetailScreenState
               _DetailAction(
                 icon: Icons.tune,
                 label: '保存播放偏好',
-                onPressed: () => _showMessage(context, 'VR 回忆设置已保存'),
+                onPressed: () => _showMessage(context, 'AR 回忆设置已保存'),
               ),
             ],
           ),
