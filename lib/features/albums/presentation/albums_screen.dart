@@ -94,8 +94,6 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                 );
               },
             ),
-          const SizedBox(height: 24),
-          const MemoryVideoSection(),
         ],
       ),
     );
@@ -117,7 +115,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
   }
 
   void _createMemoryVideo(_CategoryAlbum album) {
-    MemoryVideoStore.instance.addFromAlbum(
+    final video = MemoryVideoStore.instance.addFromAlbum(
       albumName: album.name,
       clips: [
         for (final photo in album.photos)
@@ -130,6 +128,18 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已将「${album.name}」剪辑成回忆视频')),
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: MemoryVideoPlayer(video: video),
+        ),
+      ),
     );
   }
 

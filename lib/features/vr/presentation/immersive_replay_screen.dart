@@ -43,6 +43,20 @@ class MemoryVideoSection extends StatelessWidget {
   }
 }
 
+class MemoryVideoPlayer extends StatelessWidget {
+  const MemoryVideoPlayer({
+    required this.video,
+    super.key,
+  });
+
+  final MemoryVideo video;
+
+  @override
+  Widget build(BuildContext context) {
+    return _MemoryVideoPreviewCard(video: video);
+  }
+}
+
 class _EmptyMemoryPanel extends StatelessWidget {
   const _EmptyMemoryPanel({required this.message});
 

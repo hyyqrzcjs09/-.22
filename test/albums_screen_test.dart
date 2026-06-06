@@ -26,13 +26,18 @@ void main() {
 
     expect(find.text('家庭'), findsOneWidget);
     expect(find.text('4 张照片'), findsOneWidget);
+    expect(find.text('还没有回忆视频'), findsNothing);
 
     await tester.tap(find.byTooltip('剪辑回忆视频'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(MemoryVideoStore.instance.videos, hasLength(1));
     expect(MemoryVideoStore.instance.videos.first.albumName, '家庭');
     expect(find.text('家庭 回忆视频'), findsOneWidget);
+    expect(find.byTooltip('视频速览'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.text('家庭'));
     await tester.pumpAndSettle();

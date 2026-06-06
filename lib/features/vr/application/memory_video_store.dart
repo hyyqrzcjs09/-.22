@@ -35,7 +35,7 @@ class MemoryVideoStore extends ChangeNotifier {
 
   List<MemoryVideo> get videos => List.unmodifiable(_videos);
 
-  void addFromAlbum({
+  MemoryVideo addFromAlbum({
     required String albumName,
     required List<MemoryClip> clips,
   }) {
@@ -49,6 +49,7 @@ class MemoryVideoStore extends ChangeNotifier {
 
     _videos.insert(0, video);
     notifyListeners();
+    return video;
   }
 
   @visibleForTesting
