@@ -6,6 +6,7 @@ import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/photos/presentation/photos_screen.dart';
 import '../features/profile/application/user_settings.dart';
+import '../features/profile/presentation/profile_detail_screens.dart';
 import '../features/profile/presentation/profile_screen.dart';
 
 abstract final class AppRoutes {
@@ -14,6 +15,9 @@ abstract final class AppRoutes {
   static const dates = '/dates';
   static const categories = '/categories';
   static const profile = '/profile';
+  static const profilePhotoPermissions = '/profile/photo-permissions';
+  static const profileNfcShares = '/profile/nfc-shares';
+  static const profileVrMemories = '/profile/vr-memories';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -51,6 +55,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profilePhotoPermissions,
+        builder: (context, state) => const PhotoPermissionDetailScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileNfcShares,
+        builder: (context, state) => const NfcShareRecordsDetailScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileVrMemories,
+        builder: (context, state) => const VrMemorySettingsDetailScreen(),
       ),
     ],
   );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/app_router.dart';
 import '../../../shared/widgets/album_color_picker.dart';
 import '../../../shared/widgets/album_display_mode_selector.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -93,16 +95,19 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           const _ProfileActionTile(
             icon: Icons.photo_library_outlined,
+            route: AppRoutes.profilePhotoPermissions,
             title: '本地照片权限',
             subtitle: '管理相册读取和位置照片扫描',
           ),
           const _ProfileActionTile(
             icon: Icons.nfc_outlined,
+            route: AppRoutes.profileNfcShares,
             title: 'NFC 分享记录',
             subtitle: '查看已绑定的相册和多人相册入口',
           ),
           const _ProfileActionTile(
             icon: Icons.view_in_ar_outlined,
+            route: AppRoutes.profileVrMemories,
             title: 'VR 回忆设置',
             subtitle: '管理视频生成、过渡和播放偏好',
           ),
@@ -216,11 +221,13 @@ class _SettingsPanel extends StatelessWidget {
 class _ProfileActionTile extends StatelessWidget {
   const _ProfileActionTile({
     required this.icon,
+    required this.route,
     required this.subtitle,
     required this.title,
   });
 
   final IconData icon;
+  final String route;
   final String subtitle;
   final String title;
 
@@ -250,7 +257,7 @@ class _ProfileActionTile extends StatelessWidget {
           title: Text(title),
           subtitle: Text(subtitle),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () {},
+          onTap: () => context.push(route),
         ),
       ),
     );
