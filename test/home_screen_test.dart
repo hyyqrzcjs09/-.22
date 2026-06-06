@@ -28,6 +28,20 @@ void main() {
     expect(find.text('相册'), findsNothing);
     expect(find.text('相簿'), findsNothing);
 
+    await tester.tap(find.text('手账漫游'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('梦境彩贴'), findsWidgets);
+    expect(find.text('复古胶片'), findsOneWidget);
+    expect(find.text('旅行手账'), findsOneWidget);
+    expect(find.text('黑白杂志'), findsOneWidget);
+
+    await tester.tap(find.text('复古胶片'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('空间漫游'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('学校'));
     await tester.pumpAndSettle();
 

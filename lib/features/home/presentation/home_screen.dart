@@ -1,7 +1,9 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../photos/application/photo_map_providers.dart';
@@ -367,7 +369,7 @@ class _PlaceDetailView extends StatelessWidget {
   }
 }
 
-class _JournalRoamView extends ConsumerWidget {
+class _JournalRoamView extends ConsumerStatefulWidget {
   const _JournalRoamView({
     required this.backgroundColor,
     required this.displayMode,
@@ -378,7 +380,14 @@ class _JournalRoamView extends ConsumerWidget {
   final AlbumDisplayMode displayMode;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_JournalRoamView> createState() => _JournalRoamViewState();
+}
+
+class _JournalRoamViewState extends ConsumerState<_JournalRoamView> {
+  _JournalVisualStyle _visualStyle = _JournalVisualStyle.dream;
+
+  @override
+  Widget build(BuildContext context) {
     final asyncMap = ref.watch(photoMapProvider);
 
     return asyncMap.when(
@@ -405,9 +414,15 @@ class _JournalRoamView extends ConsumerWidget {
         ),
       ),
       data: (result) => _JournalPage(
-        backgroundColor: backgroundColor,
-        displayMode: displayMode,
+        backgroundColor: widget.backgroundColor,
+        displayMode: widget.displayMode,
+        onStyleChanged: (style) {
+          setState(() {
+            _visualStyle = style;
+          });
+        },
         photos: result.photos,
+        visualStyle: _visualStyle,
       ),
     );
   }
@@ -417,12 +432,16 @@ class _JournalPage extends StatelessWidget {
   const _JournalPage({
     required this.backgroundColor,
     required this.displayMode,
+    required this.onStyleChanged,
     required this.photos,
+    required this.visualStyle,
   });
 
   final Color backgroundColor;
   final AlbumDisplayMode displayMode;
+  final ValueChanged<_JournalVisualStyle> onStyleChanged;
   final List<PhotoMapItem> photos;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -454,13 +473,16 @@ class _JournalPage extends StatelessWidget {
             count: selectedDay.entries.length,
             displayMode: displayMode,
             isToday: isToday,
+            onStyleChanged: onStyleChanged,
             subtitle: subtitle,
+            visualStyle: visualStyle,
           ),
           const SizedBox(height: 16),
           _JournalNotebook(
             backgroundColor: backgroundColor,
             day: selectedDay,
             displayMode: displayMode,
+            visualStyle: visualStyle,
           ),
         ],
       ),
@@ -542,20 +564,113 @@ class _JournalMessage extends StatelessWidget {
   }
 }
 
+enum _JournalVisualStyle {
+  dream('梦境彩贴', Icons.auto_awesome),
+  film('复古胶片', Icons.local_movies_outlined),
+  travel('旅行手账', Icons.explore_outlined),
+  mono('黑白杂志', Icons.newspaper_outlined);
+
+  const _JournalVisualStyle(this.label, this.icon);
+
+  final IconData icon;
+  final String label;
+}
+
+class _JournalStyleSpec {
+  const _JournalStyleSpec({
+    required this.backgroundColors,
+    required this.borderColor,
+    required this.captionColor,
+    required this.foregroundColor,
+    required this.paperColor,
+    required this.stickerColor,
+    required this.tapeColor,
+  });
+
+  final List<Color> backgroundColors;
+  final Color borderColor;
+  final Color captionColor;
+  final Color foregroundColor;
+  final Color paperColor;
+  final Color stickerColor;
+  final Color tapeColor;
+}
+
+_JournalStyleSpec _styleSpecFor(_JournalVisualStyle style) {
+  return switch (style) {
+    _JournalVisualStyle.dream => const _JournalStyleSpec(
+        backgroundColors: [
+          Color(0xFFFFE2F1),
+          Color(0xFFE3F5FF),
+          Color(0xFFFFF3C7),
+        ],
+        borderColor: Color(0xFFFF8FB8),
+        captionColor: Color(0xFF73465B),
+        foregroundColor: Color(0xFF321627),
+        paperColor: Color(0xFFFFFBF3),
+        stickerColor: Color(0xFFFFB6D5),
+        tapeColor: Color(0xFFFFD166),
+      ),
+    _JournalVisualStyle.film => const _JournalStyleSpec(
+        backgroundColors: [
+          Color(0xFF2D221C),
+          Color(0xFF74533E),
+          Color(0xFFE8C995),
+        ],
+        borderColor: Color(0xFFC9925C),
+        captionColor: Color(0xFFFFF0D0),
+        foregroundColor: Color(0xFF1A120D),
+        paperColor: Color(0xFFFFF5DC),
+        stickerColor: Color(0xFFE26D5C),
+        tapeColor: Color(0xFFB7A06A),
+      ),
+    _JournalVisualStyle.travel => const _JournalStyleSpec(
+        backgroundColors: [
+          Color(0xFFCFE6D8),
+          Color(0xFFFFE3B4),
+          Color(0xFFB7D7FF),
+        ],
+        borderColor: Color(0xFF3F8F6B),
+        captionColor: Color(0xFF25493A),
+        foregroundColor: Color(0xFF143124),
+        paperColor: Color(0xFFFFFFF7),
+        stickerColor: Color(0xFF69B99D),
+        tapeColor: Color(0xFFFFB703),
+      ),
+    _JournalVisualStyle.mono => const _JournalStyleSpec(
+        backgroundColors: [
+          Color(0xFFF6F6F6),
+          Color(0xFFDEDEDE),
+          Color(0xFFFFFFFF),
+        ],
+        borderColor: Color(0xFF111111),
+        captionColor: Color(0xFF3F3F46),
+        foregroundColor: Color(0xFF111111),
+        paperColor: Color(0xFFFFFFFF),
+        stickerColor: Color(0xFF111111),
+        tapeColor: Color(0xFFD4D4D8),
+      ),
+  };
+}
+
 class _JournalHeader extends StatelessWidget {
   const _JournalHeader({
     required this.backgroundColor,
     required this.count,
     required this.displayMode,
     required this.isToday,
+    required this.onStyleChanged,
     required this.subtitle,
+    required this.visualStyle,
   });
 
   final Color backgroundColor;
   final int count;
   final AlbumDisplayMode displayMode;
   final bool isToday;
+  final ValueChanged<_JournalVisualStyle> onStyleChanged;
   final String subtitle;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -579,45 +694,86 @@ class _JournalHeader extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: accent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const SizedBox(
-                width: 52,
-                height: 52,
-                child: Icon(Icons.auto_stories_outlined),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isToday ? '今日手账' : '最近手账',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+            Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    '$subtitle · 偏好：${displayMode.label}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF666A73),
-                          fontWeight: FontWeight.w600,
-                        ),
+                  child: const SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: Icon(Icons.auto_stories_outlined),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isToday ? '今日手账' : '最近手账',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '$subtitle · 偏好：${displayMode.label}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: const Color(0xFF666A73),
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _JournalCountPill(count: count),
+              ],
             ),
-            const SizedBox(width: 12),
-            _JournalCountPill(count: count),
+            const Divider(height: 28),
+            _JournalStyleSelector(
+              selected: visualStyle,
+              onChanged: onStyleChanged,
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _JournalStyleSelector extends StatelessWidget {
+  const _JournalStyleSelector({
+    required this.onChanged,
+    required this.selected,
+  });
+
+  final ValueChanged<_JournalVisualStyle> onChanged;
+  final _JournalVisualStyle selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final style in _JournalVisualStyle.values)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                avatar: Icon(style.icon, size: 18),
+                label: Text(style.label),
+                selected: selected == style,
+                onSelected: (_) => onChanged(style),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -628,68 +784,235 @@ class _JournalNotebook extends StatelessWidget {
     required this.backgroundColor,
     required this.day,
     required this.displayMode,
+    required this.visualStyle,
   });
 
   final Color backgroundColor;
   final _JournalDay day;
   final AlbumDisplayMode displayMode;
+  final _JournalVisualStyle visualStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = _styleSpecFor(visualStyle);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: spec.borderColor, width: 2),
+        borderRadius: BorderRadius.circular(8),
+        color: spec.paperColor,
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 30,
+            color: Color(0x24000000),
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: spec.backgroundColors,
+            ),
+          ),
+          child: Stack(
+            children: [
+              _JournalDecorLayer(spec: spec, visualStyle: visualStyle),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 620;
+                    final body = _JournalBody(
+                      day: day,
+                      displayMode: displayMode,
+                      visualStyle: visualStyle,
+                    );
+
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _JournalDateRail(
+                            backgroundColor: backgroundColor,
+                            day: day,
+                            horizontal: true,
+                            visualStyle: visualStyle,
+                          ),
+                          const SizedBox(height: 18),
+                          body,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 144,
+                          child: _JournalDateRail(
+                            backgroundColor: backgroundColor,
+                            day: day,
+                            visualStyle: visualStyle,
+                          ),
+                        ),
+                        const SizedBox(width: 22),
+                        Expanded(child: body),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalDecorLayer extends StatelessWidget {
+  const _JournalDecorLayer({
+    required this.spec,
+    required this.visualStyle,
+  });
+
+  final _JournalStyleSpec spec;
+  final _JournalVisualStyle visualStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            Positioned(
+              left: 24,
+              top: 18,
+              child: _JournalTape(
+                angle: -0.08,
+                color: spec.tapeColor.withValues(alpha: 0.9),
+                label: visualStyle.label,
+              ),
+            ),
+            Positioned(
+              right: 24,
+              top: 28,
+              child: Icon(
+                visualStyle.icon,
+                color: spec.foregroundColor.withValues(alpha: 0.18),
+                size: 72,
+              ),
+            ),
+            Positioned(
+              right: 32,
+              bottom: 24,
+              child: _JournalSticker(
+                color: spec.stickerColor,
+                icon: Icons.favorite,
+              ),
+            ),
+            Positioned(
+              left: 42,
+              bottom: 28,
+              child: _JournalSticker(
+                color: spec.paperColor,
+                icon: Icons.auto_awesome,
+                outlined: true,
+              ),
+            ),
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: spec.foregroundColor.withValues(alpha: 0.16),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: const SizedBox(height: 1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalTape extends StatelessWidget {
+  const _JournalTape({
+    required this.angle,
+    required this.color,
+    required this.label,
+  });
+
+  final double angle;
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: angle,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFF111111),
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalSticker extends StatelessWidget {
+  const _JournalSticker({
+    required this.color,
+    required this.icon,
+    this.outlined = false,
+  });
+
+  final Color color;
+  final IconData icon;
+  final bool outlined;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE3E5E8)),
+        color: outlined ? Colors.white.withValues(alpha: 0.78) : color,
+        border: Border.all(color: const Color(0xFF111111), width: 2),
         borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
         boxShadow: const [
           BoxShadow(
-            blurRadius: 26,
-            color: Color(0x12000000),
-            offset: Offset(0, 14),
+            blurRadius: 10,
+            color: Color(0x1F000000),
+            offset: Offset(0, 5),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 620;
-            final body = _JournalBody(
-              day: day,
-              displayMode: displayMode,
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _JournalDateRail(
-                    backgroundColor: backgroundColor,
-                    day: day,
-                    horizontal: true,
-                  ),
-                  const Divider(height: 30),
-                  body,
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 132,
-                  child: _JournalDateRail(
-                    backgroundColor: backgroundColor,
-                    day: day,
-                  ),
-                ),
-                const SizedBox(width: 22),
-                Expanded(child: body),
-              ],
-            );
-          },
-        ),
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: Icon(icon, color: const Color(0xFF111111), size: 22),
       ),
     );
   }
@@ -699,18 +1022,21 @@ class _JournalDateRail extends StatelessWidget {
   const _JournalDateRail({
     required this.backgroundColor,
     required this.day,
+    required this.visualStyle,
     this.horizontal = false,
   });
 
   final Color backgroundColor;
   final _JournalDay day;
   final bool horizontal;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
+    final spec = _styleSpecFor(visualStyle);
     final accent = Color.alphaBlend(
-      backgroundColor.withValues(alpha: 0.14),
-      Colors.white,
+      backgroundColor.withValues(alpha: 0.16),
+      spec.paperColor,
     );
     final monthLabel = '${day.date.month}月';
     final dayLabel = '${day.date.day}';
@@ -723,6 +1049,7 @@ class _JournalDateRail extends StatelessWidget {
             accent: accent,
             dayLabel: dayLabel,
             monthLabel: monthLabel,
+            spec: spec,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -742,12 +1069,13 @@ class _JournalDateRail extends StatelessWidget {
           accent: accent,
           dayLabel: dayLabel,
           monthLabel: monthLabel,
+          spec: spec,
         ),
         const SizedBox(height: 18),
         Container(
           width: 2,
           height: 78,
-          color: const Color(0xFFE0E2E5),
+          color: spec.foregroundColor.withValues(alpha: 0.28),
         ),
         const SizedBox(height: 18),
         _JournalDateMeta(
@@ -764,19 +1092,28 @@ class _JournalDateBox extends StatelessWidget {
     required this.accent,
     required this.dayLabel,
     required this.monthLabel,
+    required this.spec,
   });
 
   final Color accent;
   final String dayLabel;
   final String monthLabel;
+  final _JournalStyleSpec spec;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFD7DADF)),
+        border: Border.all(color: spec.foregroundColor, width: 2),
         borderRadius: BorderRadius.circular(8),
         color: accent,
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 12,
+            color: Color(0x24000000),
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: SizedBox(
         width: 104,
@@ -787,7 +1124,7 @@ class _JournalDateBox extends StatelessWidget {
             Text(
               monthLabel,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: const Color(0xFF575B63),
+                    color: spec.captionColor,
                     fontWeight: FontWeight.w900,
                   ),
             ),
@@ -795,7 +1132,7 @@ class _JournalDateBox extends StatelessWidget {
             Text(
               dayLabel,
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: const Color(0xFF111111),
+                    color: spec.foregroundColor,
                     fontWeight: FontWeight.w900,
                   ),
             ),
@@ -843,24 +1180,36 @@ class _JournalBody extends StatelessWidget {
   const _JournalBody({
     required this.day,
     required this.displayMode,
+    required this.visualStyle,
   });
 
   final _JournalDay day;
   final AlbumDisplayMode displayMode;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
     return switch (displayMode) {
-      AlbumDisplayMode.detail => _JournalGrid(day: day),
-      AlbumDisplayMode.stack => _JournalCollage(day: day),
+      AlbumDisplayMode.detail => _JournalGrid(
+          day: day,
+          visualStyle: visualStyle,
+        ),
+      AlbumDisplayMode.stack => _JournalCollage(
+          day: day,
+          visualStyle: visualStyle,
+        ),
     };
   }
 }
 
 class _JournalGrid extends StatelessWidget {
-  const _JournalGrid({required this.day});
+  const _JournalGrid({
+    required this.day,
+    required this.visualStyle,
+  });
 
   final _JournalDay day;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -887,6 +1236,7 @@ class _JournalGrid extends StatelessWidget {
           itemBuilder: (context, index) => _JournalPhotoTile(
             entry: day.entries[index],
             index: index,
+            visualStyle: visualStyle,
           ),
         );
       },
@@ -895,14 +1245,19 @@ class _JournalGrid extends StatelessWidget {
 }
 
 class _JournalCollage extends StatelessWidget {
-  const _JournalCollage({required this.day});
+  const _JournalCollage({
+    required this.day,
+    required this.visualStyle,
+  });
 
   final _JournalDay day;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final spec = _styleSpecFor(visualStyle);
         final width = constraints.maxWidth.clamp(280.0, 620.0).toDouble();
         final cardWidth = math.min(168.0, math.max(118.0, width * 0.34));
         final layouts = [
@@ -928,9 +1283,11 @@ class _JournalCollage extends StatelessWidget {
                     top: 88,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        border: Border.all(
+                          color: spec.foregroundColor.withValues(alpha: 0.24),
+                        ),
                         borderRadius: BorderRadius.circular(8),
-                        color: const Color(0xFFF7F7F8),
+                        color: spec.paperColor.withValues(alpha: 0.72),
                       ),
                       child: const SizedBox(height: 210),
                     ),
@@ -945,6 +1302,7 @@ class _JournalCollage extends StatelessWidget {
                         angle: layouts[index].angle,
                         entry: day.entries[index],
                         index: index,
+                        visualStyle: visualStyle,
                         width: cardWidth,
                       ),
                     ),
@@ -962,18 +1320,29 @@ class _JournalPhotoTile extends StatelessWidget {
   const _JournalPhotoTile({
     required this.entry,
     required this.index,
+    required this.visualStyle,
   });
 
   final _JournalPhotoEntry entry;
   final int index;
+  final _JournalVisualStyle visualStyle;
 
   @override
   Widget build(BuildContext context) {
+    final spec = _styleSpecFor(visualStyle);
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE3E5E8)),
+        border: Border.all(color: spec.foregroundColor, width: 2),
         borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
+        color: spec.paperColor,
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 12,
+            color: Color(0x22000000),
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -981,9 +1350,10 @@ class _JournalPhotoTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _MemoryImageBlock(
-                colors: _journalPaletteFor(entry.areaType, index),
-                icon: _iconForAreaType(entry.areaType),
+              child: _JournalPictureBlock(
+                entry: entry,
+                index: index,
+                visualStyle: visualStyle,
               ),
             ),
             const SizedBox(height: 10),
@@ -992,6 +1362,7 @@ class _JournalPhotoTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: spec.foregroundColor,
                     fontWeight: FontWeight.w900,
                   ),
             ),
@@ -999,7 +1370,7 @@ class _JournalPhotoTile extends StatelessWidget {
             Text(
               _formatTime(entry.date),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6B7280),
+                    color: spec.captionColor,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -1015,22 +1386,27 @@ class _JournalStickerTile extends StatelessWidget {
     required this.angle,
     required this.entry,
     required this.index,
+    required this.visualStyle,
     required this.width,
   });
 
   final double angle;
   final _JournalPhotoEntry entry;
   final int index;
+  final _JournalVisualStyle visualStyle;
   final double width;
 
   @override
   Widget build(BuildContext context) {
+    final spec = _styleSpecFor(visualStyle);
+
     return Transform.rotate(
       angle: angle,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: Colors.white,
+          border: Border.all(color: spec.foregroundColor, width: 2),
+          color: spec.paperColor,
           boxShadow: const [
             BoxShadow(
               blurRadius: 18,
@@ -1044,12 +1420,130 @@ class _JournalStickerTile extends StatelessWidget {
           height: width * 1.24,
           child: Padding(
             padding: EdgeInsets.fromLTRB(9, 9, 9, width * 0.24),
-            child: _MemoryImageBlock(
-              colors: _journalPaletteFor(entry.areaType, index),
-              icon: _iconForAreaType(entry.areaType),
+            child: _JournalPictureBlock(
+              entry: entry,
+              index: index,
+              visualStyle: visualStyle,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _JournalPictureBlock extends StatelessWidget {
+  const _JournalPictureBlock({
+    required this.entry,
+    required this.index,
+    required this.visualStyle,
+  });
+
+  final _JournalPhotoEntry entry;
+  final int index;
+  final _JournalVisualStyle visualStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = entry.source?.asset;
+
+    if (asset == null) {
+      return _JournalIllustrationBlock(
+        areaType: entry.areaType,
+        index: index,
+        visualStyle: visualStyle,
+      );
+    }
+
+    return FutureBuilder<Uint8List?>(
+      future: asset.thumbnailDataWithSize(
+        const ThumbnailSize.square(520),
+        quality: 76,
+      ),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+
+        if (bytes == null) {
+          return _JournalIllustrationBlock(
+            areaType: entry.areaType,
+            index: index,
+            visualStyle: visualStyle,
+          );
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.memory(bytes, fit: BoxFit.cover),
+        );
+      },
+    );
+  }
+}
+
+class _JournalIllustrationBlock extends StatelessWidget {
+  const _JournalIllustrationBlock({
+    required this.areaType,
+    required this.index,
+    required this.visualStyle,
+  });
+
+  final PhotoAreaType areaType;
+  final int index;
+  final _JournalVisualStyle visualStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = _styleSpecFor(visualStyle);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _journalPaletteFor(areaType, index, visualStyle),
+          transform: const GradientRotation(math.pi / 8),
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Icon(
+              visualStyle.icon,
+              color: Colors.white.withValues(alpha: 0.34),
+              size: 36,
+            ),
+          ),
+          Center(
+            child: Icon(
+              _iconForAreaType(areaType),
+              color: Colors.white.withValues(alpha: 0.86),
+              size: 54,
+            ),
+          ),
+          Positioned(
+            left: 8,
+            bottom: 8,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: spec.paperColor.withValues(alpha: 0.76),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  areaType.label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: spec.foregroundColor,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1401,10 +1895,12 @@ class _JournalPhotoEntry {
     required this.areaType,
     required this.date,
     required this.title,
+    this.source,
   });
 
   final PhotoAreaType areaType;
   final DateTime date;
+  final PhotoMapItem? source;
   final String title;
 }
 
@@ -1418,6 +1914,7 @@ List<_JournalPhotoEntry> _buildJournalEntries(List<PhotoMapItem> photos) {
       _JournalPhotoEntry(
         areaType: photos[index].areaType,
         date: photos[index].createdAt ?? _fallbackJournalDate(index),
+        source: photos[index],
         title: photos[index].title.trim().isEmpty
             ? '${photos[index].areaType.label}照片 ${index + 1}'
             : photos[index].title,
@@ -1521,14 +2018,37 @@ String _weekdayLabel(DateTime date) {
   return labels[date.weekday - 1];
 }
 
-List<Color> _journalPaletteFor(PhotoAreaType areaType, int index) {
-  const palettes = [
-    [Color(0xFF111111), Color(0xFFE5E7EB)],
-    [Color(0xFF3F3F46), Color(0xFFF4F4F5)],
-    [Color(0xFF71717A), Color(0xFFD4D4D8)],
-    [Color(0xFF18181B), Color(0xFFA1A1AA)],
-    [Color(0xFF52525B), Color(0xFFFAFAFA)],
-  ];
+List<Color> _journalPaletteFor(
+  PhotoAreaType areaType,
+  int index,
+  _JournalVisualStyle style,
+) {
+  final palettes = switch (style) {
+    _JournalVisualStyle.dream => const [
+        [Color(0xFFFF7AB6), Color(0xFF6EE7F9)],
+        [Color(0xFFFFD166), Color(0xFFFF8FAB)],
+        [Color(0xFFA78BFA), Color(0xFFFDE68A)],
+        [Color(0xFF60A5FA), Color(0xFFFFB3C7)],
+      ],
+    _JournalVisualStyle.film => const [
+        [Color(0xFF3B2A21), Color(0xFFD6A15F)],
+        [Color(0xFF6F4E37), Color(0xFFF4D06F)],
+        [Color(0xFF1F2937), Color(0xFFE26D5C)],
+        [Color(0xFF8B5E34), Color(0xFFFFE5B4)],
+      ],
+    _JournalVisualStyle.travel => const [
+        [Color(0xFF2A9D8F), Color(0xFFF4A261)],
+        [Color(0xFF457B9D), Color(0xFFFFE8A3)],
+        [Color(0xFF588157), Color(0xFFBDE0FE)],
+        [Color(0xFFE9C46A), Color(0xFF90BE6D)],
+      ],
+    _JournalVisualStyle.mono => const [
+        [Color(0xFF111111), Color(0xFFE5E5E5)],
+        [Color(0xFF3F3F46), Color(0xFFF4F4F5)],
+        [Color(0xFF71717A), Color(0xFFD4D4D8)],
+        [Color(0xFF18181B), Color(0xFFA1A1AA)],
+      ],
+  };
 
   return palettes[(areaType.index + index).abs() % palettes.length];
 }
