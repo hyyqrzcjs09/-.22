@@ -12,6 +12,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from '../lib/mapbox';
 import { applySoftGreenParksTheme, setMapLabelsToChinese } from '../lib/mapboxTheme';
+import ARMatchScreen from './components/ARMatchScreen';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -205,7 +206,7 @@ export default function App() {
             >
               {activeTab === 'map' && <MapScreen />}
               {activeTab === 'photos' && <PhotosScreen />}
-              {activeTab === 'albums' && <AlbumsScreen />}
+              {activeTab === 'albums' && <ARMatchScreen />}
             </motion.div>
           </AnimatePresence>
         </div>

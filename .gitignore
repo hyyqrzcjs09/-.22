@@ -20,3 +20,8 @@ dist/
 **/.env
 **/.env.local
 **/.env.*.local
+
+# 参考项目，不纳入本仓库
+TrenderRadar/
+TrenderRadar
+TrenderRadar.zip
