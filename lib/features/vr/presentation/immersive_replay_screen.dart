@@ -268,8 +268,7 @@ class _MemoryClipFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final palette = _previewPalette(index, colors);
+    final palette = _previewPalette(index);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -311,12 +310,12 @@ class _MemoryClipFrame extends StatelessWidget {
   }
 }
 
-List<Color> _previewPalette(int index, ColorScheme colors) {
-  final palettes = [
-    [colors.primary, colors.tertiary],
-    [colors.secondary, const Color(0xFF475569)],
-    [const Color(0xFF0F766E), const Color(0xFF7C3AED)],
-    [const Color(0xFFBE123C), const Color(0xFF334155)],
+List<Color> _previewPalette(int index) {
+  const palettes = [
+    [Color(0xFF111111), Color(0xFF71717A)],
+    [Color(0xFF3F3F46), Color(0xFFE4E4E7)],
+    [Color(0xFF18181B), Color(0xFF52525B)],
+    [Color(0xFF27272A), Color(0xFFA1A1AA)],
   ];
 
   return palettes[index % palettes.length];

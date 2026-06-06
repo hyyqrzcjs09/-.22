@@ -325,10 +325,10 @@ class _CalendarView extends StatelessWidget {
     const activeDays = {
       5: (3, [Color(0xFFAA4E30), Color(0xFFF0B07A)]),
       6: (8, [Color(0xFFCABFA0), Color(0xFF786B54)]),
-      7: (2, [Color(0xFF82B8D9), Color(0xFF26618C)]),
+      7: (2, [Color(0xFFD4D4D8), Color(0xFF52525B)]),
       15: (12, [Color(0xFF5D5147), Color(0xFFC9B59B)]),
       22: (5, [Color(0xFF101827), Color(0xFF64748B)]),
-      28: (1, [Color(0xFF94C2D8), Color(0xFF4761A6)]),
+      28: (1, [Color(0xFFE4E4E7), Color(0xFF71717A)]),
     };
 
     return ListView(
@@ -709,19 +709,19 @@ class _TiltedPhoto extends StatelessWidget {
 abstract final class _PhotoPalette {
   static const yesterday = [
     [Color(0xFF4B5563), Color(0xFFD1D5DB)],
-    [Color(0xFFD9D4C8), Color(0xFF7C8A78)],
+    [Color(0xFFD9D4C8), Color(0xFF71717A)],
     [Color(0xFF111827), Color(0xFFE5E7EB)],
   ];
 
   static const june = [
-    [Color(0xFFB9D8F5), Color(0xFF7E8FA3)],
-    [Color(0xFF62C8C4), Color(0xFF0F766E)],
+    [Color(0xFFE4E4E7), Color(0xFF71717A)],
+    [Color(0xFF3F3F46), Color(0xFFD4D4D8)],
     [Color(0xFFFFCFBC), Color(0xFFE57D78)],
     [Color(0xFF64748B), Color(0xFF111827)],
   ];
 
   static const city = [
-    [Color(0xFF163B2C), Color(0xFFB4D080)],
+    [Color(0xFF18181B), Color(0xFFD4D4D8)],
     [Color(0xFF5A341E), Color(0xFFE8A35B)],
     [Color(0xFF111827), Color(0xFF52525B)],
     [Color(0xFFE5E7EB), Color(0xFF94A3B8)],

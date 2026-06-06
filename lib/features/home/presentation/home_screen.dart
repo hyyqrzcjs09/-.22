@@ -638,10 +638,10 @@ class _PhotoCountBadge extends StatelessWidget {
 
 List<Color> _paletteForItem(PhotoMapItem item, int index) {
   const palettes = [
-    [Color(0xFF5DAE79), Color(0xFFBFE8C0)],
-    [Color(0xFFD7B48C), Color(0xFFF6E8D5)],
-    [Color(0xFFF08825), Color(0xFFFFD6A1)],
-    [Color(0xFF5B8068), Color(0xFFE8F0F2)],
+    [Color(0xFF111111), Color(0xFFD4D4D8)],
+    [Color(0xFF3F3F46), Color(0xFFE4E4E7)],
+    [Color(0xFF71717A), Color(0xFFF4F4F5)],
+    [Color(0xFF18181B), Color(0xFFA1A1AA)],
   ];
   return palettes[(item.title.hashCode + index).abs() % palettes.length];
 }

@@ -411,8 +411,8 @@ class _PhotoThumb extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: asset == null
           ? const ColoredBox(
-              color: Color(0xFFE0F2F1),
-              child: Icon(Icons.photo, color: Color(0xFF006B63)),
+              color: Color(0xFFE4E4E7),
+              child: Icon(Icons.photo, color: Color(0xFF18181B)),
             )
           : FutureBuilder<Uint8List?>(
               future: asset.thumbnailDataWithSize(

@@ -1,14 +1,37 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
-  static const _seedColor = Color(0xFF287C78);
+  static const _black = Color(0xFF111111);
+  static const _gray900 = Color(0xFF18181B);
+  static const _gray700 = Color(0xFF3F3F46);
+  static const _gray500 = Color(0xFF71717A);
+  static const _gray200 = Color(0xFFE4E4E7);
+  static const _gray100 = Color(0xFFF4F4F5);
   static const _white = Color(0xFFFFFFFF);
   static const _softWhite = Color(0xFFFBFCFC);
 
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _seedColor,
+      seedColor: _black,
       brightness: Brightness.light,
+    ).copyWith(
+      primary: _black,
+      onPrimary: _white,
+      primaryContainer: _gray200,
+      onPrimaryContainer: _black,
+      secondary: _gray700,
+      onSecondary: _white,
+      secondaryContainer: _gray100,
+      onSecondaryContainer: _gray900,
+      tertiary: _gray500,
+      onTertiary: _white,
+      tertiaryContainer: _gray200,
+      onTertiaryContainer: _gray900,
+      surface: _white,
+      onSurface: _gray900,
+      surfaceContainerHighest: _gray100,
+      outline: _gray500,
+      outlineVariant: _gray200,
     );
 
     final textTheme = ThemeData.light().textTheme;

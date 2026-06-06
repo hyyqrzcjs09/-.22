@@ -1333,9 +1333,9 @@ class _AlbumMiniPhotoStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     const previewColors = [
-      Color(0xFFDDEFEA),
-      Color(0xFFEFE4DD),
-      Color(0xFFDDE5EF),
+      Color(0xFFF4F4F5),
+      Color(0xFFE4E4E7),
+      Color(0xFFD4D4D8),
     ];
 
     return SizedBox(

@@ -5,10 +5,10 @@ import '../../features/profile/application/user_settings.dart';
 
 const albumBackgroundPresets = [
   Color(0xFFD5D7DA),
-  Color(0xFFEADBC8),
-  Color(0xFFD8E8D3),
-  Color(0xFFD9E8F5),
-  Color(0xFFE8D8EF),
+  Color(0xFFFFFFFF),
+  Color(0xFFF4F4F5),
+  Color(0xFFE4E4E7),
+  Color(0xFF18181B),
 ];
 
 class AlbumColorPicker extends ConsumerWidget {
