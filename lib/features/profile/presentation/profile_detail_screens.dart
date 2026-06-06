@@ -1,7 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/album_display_mode_selector.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../application/user_settings.dart';
 import '../../vr/presentation/immersive_replay_screen.dart';
+
+class AlbumDisplayModeDetailScreen extends ConsumerWidget {
+  const AlbumDisplayModeDetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(userSettingsProvider);
+
+    return AppScaffold(
+      selectedIndex: 2,
+      title: '展示形式',
+      child: _DetailList(
+        children: [
+          _HeroPanel(
+            icon: Icons.view_carousel_outlined,
+            title: '地点漫游后的展示形式',
+            subtitle: '点击地图地点后，仅展示用户选择的相册或相簿形式。',
+            metrics: [
+              _DetailMetric(
+                  label: '当前形式', value: settings.albumDisplayMode.label),
+              const _DetailMetric(label: '触发位置', value: '地点聚合'),
+              const _DetailMetric(label: '展示规则', value: '单一形式'),
+            ],
+          ),
+          const _DetailSection(
+            title: '展示规则',
+            children: [
+              _InfoRow(
+                icon: Icons.map_outlined,
+                title: '仅在地点漫游后生效',
+                subtitle: '首页地图不直接展示相册和相簿，点击某个地点聚合后才进入对应展示。',
+              ),
+              _InfoRow(
+                icon: Icons.visibility_outlined,
+                title: '只展示所选形式',
+                subtitle: '选择相册时显示单张详情卡，选择相簿时显示文件夹堆叠形式。',
+              ),
+              _InfoRow(
+                icon: Icons.sync_alt,
+                title: '和地图聚合同步',
+                subtitle: '学校、景点等区域聚合照片大于等于 2 张时，会按当前形式打开。',
+              ),
+            ],
+          ),
+          _WhitePanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PanelTitle(title: '选择展示形式'),
+                const SizedBox(height: 8),
+                Text(
+                  '该设置会影响地点漫游点击聚合后的二级展示页面。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 14),
+                AlbumDisplayModeSelector(selected: settings.albumDisplayMode),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class PhotoPermissionDetailScreen extends StatefulWidget {
   const PhotoPermissionDetailScreen({super.key});

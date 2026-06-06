@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/app_router.dart';
 import '../../../shared/widgets/album_color_picker.dart';
-import '../../../shared/widgets/album_display_mode_selector.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../application/user_settings.dart';
 
@@ -86,11 +85,9 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _SettingsPanel(
+          const _SettingsLinkPanel(
+            route: AppRoutes.profileAlbumDisplayMode,
             title: '地点漫游后的展示形式',
-            subtitle: '点击地图地点后，仅展示所选形式。',
-            child:
-                AlbumDisplayModeSelector(selected: settings.albumDisplayMode),
           ),
           const SizedBox(height: 16),
           const _ProfileActionTile(
@@ -213,6 +210,39 @@ class _SettingsPanel extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SettingsLinkPanel extends StatelessWidget {
+  const _SettingsLinkPanel({
+    required this.route,
+    required this.title,
+  });
+
+  final String route;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      child: ListTile(
+        title: Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push(route),
       ),
     );
   }

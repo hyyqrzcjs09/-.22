@@ -15,6 +15,7 @@ abstract final class AppRoutes {
   static const dates = '/dates';
   static const categories = '/categories';
   static const profile = '/profile';
+  static const profileAlbumDisplayMode = '/profile/album-display-mode';
   static const profilePhotoPermissions = '/profile/photo-permissions';
   static const profileNfcShares = '/profile/nfc-shares';
   static const profileVrMemories = '/profile/vr-memories';
@@ -55,6 +56,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileAlbumDisplayMode,
+        builder: (context, state) => const AlbumDisplayModeDetailScreen(),
       ),
       GoRoute(
         path: AppRoutes.profilePhotoPermissions,
