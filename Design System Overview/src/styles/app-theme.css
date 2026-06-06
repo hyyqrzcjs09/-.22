@@ -1,0 +1,34 @@
+/* iPhone Photo App Design System */
+:root {
+  /* Color Tokens */
+  --app-bg-gray: #F5F4F1;
+  --app-card-white: #FFFFFF;
+  --app-brand-yellow-start: #FFE34D;
+  --app-brand-yellow-end: #FFC700;
+  --app-accent-blue: #0A84FF;
+  --app-text-primary: #1C1C1E;
+  --app-text-secondary: #8E8E93;
+  --app-divider: #E5E5EA;
+  
+  /* Typography - SF Pro */
+  --app-text-hero: 28px;
+  --app-text-section: 20px;
+  --app-text-body: 15px;
+  --app-text-caption: 13px;
+  --app-text-superscript: 10px;
+  
+  /* Spacing & Borders */
+  --app-radius-card: 16px;
+  --app-radius-photo: 10px;
+  --app-radius-full: 9999px;
+  
+  /* Shadows */
+  --app-shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* SF Pro Font */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
