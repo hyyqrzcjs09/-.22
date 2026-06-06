@@ -108,6 +108,8 @@ class _PhotoMapBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final areaGroups = buildPhotoAreaGroups(photos);
+
     return Stack(
       children: [
         FlutterMap(
@@ -129,13 +131,15 @@ class _PhotoMapBody extends StatelessWidget {
               ),
             MarkerLayer(
               markers: [
-                for (final photo in photos)
+                for (final group in areaGroups)
                   Marker(
-                    point: photo.position,
-                    width: 116,
-                    height: 96,
+                    point: group.center,
+                    width: group.isCluster ? 132 : 116,
+                    height: group.isCluster ? 104 : 96,
                     alignment: Alignment.bottomCenter,
-                    child: _PhotoMapMarker(photo: photo),
+                    child: group.isCluster
+                        ? _PhotoAreaGroupMarker(group: group)
+                        : _PhotoMapMarker(photo: group.items.first),
                   ),
               ],
             ),
@@ -212,6 +216,91 @@ class _MapboxTokenPanel extends StatelessWidget {
   }
 }
 
+class _PhotoAreaGroupMarker extends StatelessWidget {
+  const _PhotoAreaGroupMarker({required this.group});
+
+  final PhotoAreaGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final areaColor = _areaColor(colors, group.areaType);
+    final label = group.areaType.label;
+
+    return Tooltip(
+      message: '$label ${group.items.length} 张照片',
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Positioned(
+            bottom: 8,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: areaColor,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    blurRadius: 10,
+                    color: Color(0x3D000000),
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: 86,
+                height: 72,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 7,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(_areaIcon(group.areaType), color: Colors.white),
+                      const SizedBox(height: 3),
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                      ),
+                      Text(
+                        '${group.items.length}张',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Icon(
+            Icons.location_on,
+            color: areaColor,
+            size: 34,
+            shadows: const [
+              Shadow(
+                blurRadius: 5,
+                color: Color(0x66000000),
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PhotoMapMarker extends StatelessWidget {
   const _PhotoMapMarker({required this.photo});
 
@@ -220,6 +309,7 @@ class _PhotoMapMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final areaColor = _areaColor(colors, photo.areaType);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -227,7 +317,7 @@ class _PhotoMapMarker extends StatelessWidget {
       children: [
         Icon(
           Icons.location_on,
-          color: colors.primary,
+          color: areaColor,
           size: 40,
           shadows: const [
             Shadow(
@@ -308,6 +398,8 @@ class _MapStatusPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final areaGroups = buildPhotoAreaGroups(result.photos);
+    final clusterCount = areaGroups.where((group) => group.isCluster).length;
     final title = result.demoMode
         ? '演示地图'
         : result.isLimited
@@ -345,7 +437,7 @@ class _MapStatusPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${result.photos.length} 个点位 / ${result.withoutLocationCount} 张无位置',
+                    '${result.photos.length} 张照片 / $clusterCount 个聚合 / ${result.withoutLocationCount} 张无位置',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -492,6 +584,24 @@ class _MapHintPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _areaIcon(PhotoAreaType areaType) {
+  return switch (areaType) {
+    PhotoAreaType.school => Icons.school_outlined,
+    PhotoAreaType.attraction => Icons.attractions_outlined,
+    PhotoAreaType.life => Icons.apartment_outlined,
+    PhotoAreaType.other => Icons.location_city_outlined,
+  };
+}
+
+Color _areaColor(ColorScheme colors, PhotoAreaType areaType) {
+  return switch (areaType) {
+    PhotoAreaType.school => colors.primary,
+    PhotoAreaType.attraction => colors.tertiary,
+    PhotoAreaType.life => colors.secondary,
+    PhotoAreaType.other => const Color(0xFF4B5563),
+  };
 }
 
 geo.LatLng _mapCenter(List<PhotoMapItem> photos) {

@@ -6,12 +6,14 @@ PhotoLink VR 是一个用于照片记录、分类管理、NFC 内容链接和沉
 
 MVP 优先跑通以下流程：
 
-1. 用户上传或导入照片。
+1. 用户授权读取本地照片。
 2. 用户按时间、地区、种类浏览照片。
-3. 用户创建相册。
-4. 用户将相册或回放内容绑定到 NFC 标签。
-5. 手机读取 NFC 标签后打开对应内容。
-6. 用户播放相册的沉浸式照片回放。
+3. 用户在首页地图查看照片位置。
+4. 同一区域内照片大于等于 2 张时进行聚合展示。
+5. 用户创建相册。
+6. 用户将相册或回放内容绑定到 NFC 标签。
+7. 手机读取 NFC 标签后打开对应内容。
+8. 用户播放相册的沉浸式照片回放。
 
 ## 技术栈
 
@@ -20,6 +22,8 @@ MVP 优先跑通以下流程：
 - Riverpod
 - go_router
 - Dio
+- Mapbox Static Tiles API
+- Mapbox 样式：`mapbox://styles/mapbox/satellite-streets-v12`
 - Hive
 - image_picker
 - photo_manager

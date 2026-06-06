@@ -12,12 +12,21 @@ abstract final class AppConfig {
 
   static const mapboxStyle = String.fromEnvironment(
     'MAPBOX_STYLE',
-    defaultValue: 'mapbox/streets-v12',
+    defaultValue: 'mapbox://styles/mapbox/satellite-streets-v12',
   );
 
   static bool get hasMapboxAccessToken => mapboxAccessToken.isNotEmpty;
 
+  static String get mapboxStylePath {
+    const stylePrefix = 'mapbox://styles/';
+    final style = mapboxStyle.trim();
+    if (style.startsWith(stylePrefix)) {
+      return style.substring(stylePrefix.length);
+    }
+    return style;
+  }
+
   static String get mapboxTileUrl =>
-      'https://api.mapbox.com/styles/v1/$mapboxStyle/tiles/512/{z}/{x}/{y}'
+      'https://api.mapbox.com/styles/v1/$mapboxStylePath/tiles/512/{z}/{x}/{y}'
       '?access_token=$mapboxAccessToken';
 }
