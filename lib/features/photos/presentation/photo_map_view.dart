@@ -12,10 +12,12 @@ import '../data/local_photo_repository.dart';
 
 class PhotoMapView extends ConsumerWidget {
   const PhotoMapView({
+    this.onPlaceSelected,
     this.showStatusPanel = true,
     super.key,
   });
 
+  final ValueChanged<PhotoAreaGroup>? onPlaceSelected;
   final bool showStatusPanel;
 
   @override
@@ -25,11 +27,13 @@ class PhotoMapView extends ConsumerWidget {
     return asyncMap.when(
       loading: () => _PhotoMapBody(
         center: _defaultCenter,
+        onPlaceSelected: onPlaceSelected,
         photos: const [],
         overlay: const _MapLoadingPanel(),
       ),
       error: (error, stackTrace) => _PhotoMapBody(
         center: _defaultCenter,
+        onPlaceSelected: onPlaceSelected,
         photos: const [],
         overlay: _MapErrorPanel(
           message: '本地照片读取失败',
@@ -38,6 +42,7 @@ class PhotoMapView extends ConsumerWidget {
       ),
       data: (result) => _PhotoMapBody(
         center: _mapCenter(result.photos),
+        onPlaceSelected: onPlaceSelected,
         photos: result.photos,
         overlay: showStatusPanel
             ? _MapStatusPanel(
@@ -96,6 +101,7 @@ class PhotoMapView extends ConsumerWidget {
 class _PhotoMapBody extends StatelessWidget {
   const _PhotoMapBody({
     required this.center,
+    required this.onPlaceSelected,
     required this.photos,
     this.emptyOverlay,
     this.overlay,
@@ -103,6 +109,7 @@ class _PhotoMapBody extends StatelessWidget {
 
   final geo.LatLng center;
   final Widget? emptyOverlay;
+  final ValueChanged<PhotoAreaGroup>? onPlaceSelected;
   final Widget? overlay;
   final List<PhotoMapItem> photos;
 
@@ -137,9 +144,12 @@ class _PhotoMapBody extends StatelessWidget {
                     width: group.isCluster ? 132 : 116,
                     height: group.isCluster ? 104 : 96,
                     alignment: Alignment.bottomCenter,
-                    child: group.isCluster
-                        ? _PhotoAreaGroupMarker(group: group)
-                        : _PhotoMapMarker(photo: group.items.first),
+                    child: _SelectableMapMarker(
+                      group: group,
+                      onTap: onPlaceSelected == null
+                          ? null
+                          : () => onPlaceSelected!(group),
+                    ),
                   ),
               ],
             ),
@@ -171,6 +181,38 @@ class _PhotoMapBody extends StatelessWidget {
             child: emptyOverlay!,
           ),
       ],
+    );
+  }
+}
+
+class _SelectableMapMarker extends StatelessWidget {
+  const _SelectableMapMarker({
+    required this.group,
+    required this.onTap,
+  });
+
+  final PhotoAreaGroup group;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = group.isCluster
+        ? '${group.areaType.label} ${group.items.length} 张照片'
+        : group.items.first.title;
+
+    return Semantics(
+      button: onTap != null,
+      label: label,
+      child: Tooltip(
+        message: '打开$label',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: group.isCluster
+              ? _PhotoAreaGroupMarker(group: group)
+              : _PhotoMapMarker(photo: group.items.first),
+        ),
+      ),
     );
   }
 }
@@ -257,9 +299,14 @@ class _PhotoAreaGroupMarker extends StatelessWidget {
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(_areaIcon(group.areaType), color: Colors.white),
-                      const SizedBox(height: 3),
+                      Icon(
+                        _areaIcon(group.areaType),
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         label,
                         maxLines: 1,
@@ -274,6 +321,7 @@ class _PhotoAreaGroupMarker extends StatelessWidget {
                         '${group.items.length}张',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.white,
+                              fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
                       ),

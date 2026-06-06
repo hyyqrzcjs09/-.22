@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../photos/data/local_photo_repository.dart';
 import '../../photos/presentation/photo_map_view.dart';
 
 enum _PlaceMode { map, stack, detail }
@@ -16,6 +17,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   _PlaceMode _mode = _PlaceMode.map;
+  PhotoAreaGroup? _selectedPlace;
+
+  bool get _hasSelectedPlace => _selectedPlace != null;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +32,10 @@ class _HomeScreenState extends State<HomeScreen> {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
             child: switch (_mode) {
-              _PlaceMode.map => const PhotoMapView(showStatusPanel: false),
+              _PlaceMode.map => PhotoMapView(
+                  showStatusPanel: false,
+                  onPlaceSelected: _openPlace,
+                ),
               _PlaceMode.stack => const _PlaceStackView(),
               _PlaceMode.detail => const _PlaceDetailView(),
             },
@@ -37,8 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
               child: _PlaceTopBar(
+                hasSelectedPlace: _hasSelectedPlace,
                 mode: _mode,
-                onBack: () => setState(() => _mode = _PlaceMode.map),
+                onBack: _returnToMap,
                 onToggle: () => setState(
                   () => _mode = _mode == _PlaceMode.stack
                       ? _PlaceMode.detail
@@ -52,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 18,
             bottom: 20,
             child: _PlaceModeBar(
+              hasSelectedPlace: _hasSelectedPlace,
               mode: _mode,
               onChanged: (mode) => setState(() => _mode = mode),
             ),
@@ -60,15 +69,31 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  void _openPlace(PhotoAreaGroup group) {
+    setState(() {
+      _selectedPlace = group;
+      _mode = _PlaceMode.detail;
+    });
+  }
+
+  void _returnToMap() {
+    setState(() {
+      _selectedPlace = null;
+      _mode = _PlaceMode.map;
+    });
+  }
 }
 
 class _PlaceTopBar extends StatelessWidget {
   const _PlaceTopBar({
+    required this.hasSelectedPlace,
     required this.mode,
     required this.onBack,
     required this.onToggle,
   });
 
+  final bool hasSelectedPlace;
   final _PlaceMode mode;
   final VoidCallback onBack;
   final VoidCallback onToggle;
@@ -100,7 +125,7 @@ class _PlaceTopBar extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
             child: Text(
-              'Edinburgh · 8 张照片',
+              hasSelectedPlace ? 'Edinburgh · 8 张照片' : '地点链接 · 漫游地图',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -108,13 +133,16 @@ class _PlaceTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        _GlassIconButton(
-          tooltip: mode == _PlaceMode.detail ? '照片堆叠' : '地点详情',
-          icon: mode == _PlaceMode.detail
-              ? Icons.grid_view_rounded
-              : Icons.map_outlined,
-          onPressed: onToggle,
-        ),
+        if (hasSelectedPlace)
+          _GlassIconButton(
+            tooltip: mode == _PlaceMode.detail ? '照片堆叠' : '地点详情',
+            icon: mode == _PlaceMode.detail
+                ? Icons.grid_view_rounded
+                : Icons.map_outlined,
+            onPressed: onToggle,
+          )
+        else
+          const SizedBox(width: 48),
       ],
     );
   }
@@ -271,10 +299,12 @@ class _PlaceBackdrop extends StatelessWidget {
 
 class _PlaceModeBar extends StatelessWidget {
   const _PlaceModeBar({
+    required this.hasSelectedPlace,
     required this.mode,
     required this.onChanged,
   });
 
+  final bool hasSelectedPlace;
   final _PlaceMode mode;
   final ValueChanged<_PlaceMode> onChanged;
 
@@ -306,18 +336,20 @@ class _PlaceModeBar extends StatelessWidget {
                   selected: mode == _PlaceMode.map,
                   onTap: () => onChanged(_PlaceMode.map),
                 ),
-                _PlaceModeButton(
-                  icon: Icons.grid_view_rounded,
-                  label: '相册',
-                  selected: mode == _PlaceMode.detail,
-                  onTap: () => onChanged(_PlaceMode.detail),
-                ),
-                _PlaceModeButton(
-                  icon: Icons.folder_rounded,
-                  label: '相簿',
-                  selected: mode == _PlaceMode.stack,
-                  onTap: () => onChanged(_PlaceMode.stack),
-                ),
+                if (hasSelectedPlace) ...[
+                  _PlaceModeButton(
+                    icon: Icons.grid_view_rounded,
+                    label: '相册',
+                    selected: mode == _PlaceMode.detail,
+                    onTap: () => onChanged(_PlaceMode.detail),
+                  ),
+                  _PlaceModeButton(
+                    icon: Icons.folder_rounded,
+                    label: '相簿',
+                    selected: mode == _PlaceMode.stack,
+                    onTap: () => onChanged(_PlaceMode.stack),
+                  ),
+                ],
               ],
             ),
           ),
