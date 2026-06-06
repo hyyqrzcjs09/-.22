@@ -63,7 +63,9 @@ class ProfileScreen extends ConsumerWidget {
           _SettingsPanel(
             title: '相册背景颜色',
             subtitle: '自由设计相册背景色，地点漫游页面会同步使用。',
-            child: AlbumColorPicker(selected: settings.albumBackgroundColor),
+            child: _AlbumColorPaletteLauncher(
+              selected: settings.albumBackgroundColor,
+            ),
           ),
           const SizedBox(height: 12),
           _SettingsPanel(
@@ -90,6 +92,58 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AlbumColorPaletteLauncher extends StatelessWidget {
+  const _AlbumColorPaletteLauncher({required this.selected});
+
+  final Color selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '打开调色板',
+      child: OutlinedButton.icon(
+        onPressed: () => _openPalette(context),
+        icon: DecoratedBox(
+          decoration: BoxDecoration(
+            color: selected,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 6,
+                color: Color(0x26000000),
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const SizedBox(width: 24, height: 24),
+        ),
+        label: const Text('打开调色板'),
+      ),
+    );
+  }
+
+  void _openPalette(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('相册背景调色板'),
+          content: SingleChildScrollView(
+            child: AlbumColorPicker(selected: selected),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('完成'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

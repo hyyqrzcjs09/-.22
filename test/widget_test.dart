@@ -8,7 +8,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: PhotoLinkVrApp()));
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('账号登录'), findsOneWidget);
+    expect(find.text('登录'), findsOneWidget);
     expect(find.text('手机号'), findsOneWidget);
     expect(find.text('验证码'), findsOneWidget);
     expect(find.text('相册背景颜色'), findsOneWidget);
@@ -34,6 +34,15 @@ void main() {
 
     expect(find.textContaining('PLV-'), findsOneWidget);
     expect(find.text('地点漫游后的展示形式'), findsOneWidget);
+    expect(find.text('打开调色板'), findsOneWidget);
+
+    await tester.tap(find.text('打开调色板'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('相册背景调色板'), findsOneWidget);
+
+    await tester.tap(find.text('完成'));
+    await tester.pumpAndSettle();
 
     await tester.drag(find.byType(ListView), const Offset(0, -320));
     await tester.pumpAndSettle();

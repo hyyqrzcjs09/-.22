@@ -28,7 +28,7 @@ void main() {
       ),
     );
 
-    expect(find.text('账号登录'), findsOneWidget);
+    expect(find.text('登录'), findsOneWidget);
 
     await tester.drag(find.byType(ListView), const Offset(0, -520));
     await tester.pumpAndSettle();
