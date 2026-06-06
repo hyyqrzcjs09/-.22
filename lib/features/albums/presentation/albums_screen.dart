@@ -52,11 +52,6 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _AlbumsOverviewPanel(
-            albumCount: _albums.length,
-            onCreate: _showCreateAlbumDialog,
-          ),
-          const SizedBox(height: 16),
           _TriRingSocialPanel(
             albums: _albums,
             enabled: _socialEnabled,
@@ -74,33 +69,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
             },
           ),
           const SizedBox(height: 16),
-          if (_albums.isEmpty)
-            _EmptyCategoryPanel(onCreate: _showCreateAlbumDialog)
-          else
-            GridView.builder(
-              itemCount: _albums.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 220,
-                mainAxisExtent: 182,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-              ),
-              itemBuilder: (context, index) {
-                final album = _albums[index];
-                return _CategoryAlbumCard(
-                  album: album,
-                  onStartArReplay: () => _startArReplay(album),
-                  onCreateMemoryVideo: () => _createMemoryVideo(album),
-                  onTap: () {
-                    setState(() {
-                      _openedAlbum = album;
-                    });
-                  },
-                );
-              },
-            ),
+          _AlbumsOverviewPanel(
+            albums: _albums,
+            onCreate: _showCreateAlbumDialog,
+            onCreateMemoryVideo: _createMemoryVideo,
+            onOpenAlbum: (album) {
+              setState(() {
+                _openedAlbum = album;
+              });
+            },
+            onStartArReplay: _startArReplay,
+          ),
         ],
       ),
     );
@@ -358,66 +337,25 @@ class _CreateAlbumDialogState extends State<_CreateAlbumDialog> {
   }
 }
 
-class _EmptyCategoryPanel extends StatelessWidget {
-  const _EmptyCategoryPanel({required this.onCreate});
-
-  final VoidCallback onCreate;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: colors.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 18,
-            color: Color(0x12000000),
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          children: [
-            Icon(Icons.folder_special_outlined,
-                size: 44, color: colors.primary),
-            const SizedBox(height: 12),
-            Text(
-              '还没有比邻环相册',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-              label: const Text('建立文件夹'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _AlbumsOverviewPanel extends StatelessWidget {
   const _AlbumsOverviewPanel({
-    required this.albumCount,
+    required this.albums,
     required this.onCreate,
+    required this.onCreateMemoryVideo,
+    required this.onOpenAlbum,
+    required this.onStartArReplay,
   });
 
-  final int albumCount;
+  final List<_CategoryAlbum> albums;
   final VoidCallback onCreate;
+  final void Function(_CategoryAlbum album) onCreateMemoryVideo;
+  final void Function(_CategoryAlbum album) onOpenAlbum;
+  final void Function(_CategoryAlbum album) onStartArReplay;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final albumCount = albums.length;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -435,47 +373,116 @@ class _AlbumsOverviewPanel extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.primaryContainer.withValues(alpha: 0.76),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Icon(Icons.category_outlined, color: colors.primary),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '比邻环相册',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+            Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '$albumCount 个相册',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colors.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.category_outlined,
+                      color: colors.onSurface,
+                    ),
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '比邻环相册',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$albumCount 个相册',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: colors.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  tooltip: '建立文件夹',
+                  onPressed: onCreate,
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const Divider(height: 30),
+            if (albums.isEmpty)
+              _AlbumsEmptyState(onCreate: onCreate)
+            else
+              GridView.builder(
+                itemCount: albums.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 220,
+                  mainAxisExtent: 182,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                ),
+                itemBuilder: (context, index) {
+                  final album = albums[index];
+                  return _CategoryAlbumCard(
+                    album: album,
+                    onStartArReplay: () => onStartArReplay(album),
+                    onCreateMemoryVideo: () => onCreateMemoryVideo(album),
+                    onTap: () => onOpenAlbum(album),
+                  );
+                },
               ),
-            ),
-            IconButton.filledTonal(
-              tooltip: '建立文件夹',
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AlbumsEmptyState extends StatelessWidget {
+  const _AlbumsEmptyState({required this.onCreate});
+
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 18, 8, 0),
+      child: Column(
+        children: [
+          Icon(
+            Icons.folder_special_outlined,
+            size: 44,
+            color: colors.onSurface,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '还没有比邻环相册',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: onCreate,
+            icon: const Icon(Icons.add),
+            label: const Text('建立文件夹'),
+          ),
+        ],
       ),
     );
   }
