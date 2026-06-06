@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photo_link_vr/features/albums/presentation/albums_screen.dart';
 import 'package:photo_link_vr/features/vr/application/memory_video_store.dart';
@@ -9,7 +10,7 @@ void main() {
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: AlbumsScreen(),
+        home: ProviderScope(child: AlbumsScreen()),
       ),
     );
 
@@ -64,7 +65,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: AlbumsScreen(),
+        home: ProviderScope(child: AlbumsScreen()),
       ),
     );
 
@@ -80,12 +81,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('选择照片形成三色环'), findsOneWidget);
+    expect(find.text('等待照片输入'), findsOneWidget);
     expect(find.text('已选择 0/3 张照片'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('家庭 · 家庭 照片 1'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('家庭 · 家庭 照片 1'));
     await tester.pumpAndSettle();
 
     expect(find.text('已选择 1/3 张照片'), findsOneWidget);
+    expect(find.text('三色环智能体草稿'), findsOneWidget);
     expect(find.text('家庭 照片 1'), findsWidgets);
   });
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../application/tri_ring_agent.dart';
 import '../../vr/application/memory_video_store.dart';
 import '../../vr/presentation/immersive_replay_screen.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -342,7 +344,7 @@ class _EmptyCategoryPanel extends StatelessWidget {
   }
 }
 
-class _TriRingSocialPanel extends StatelessWidget {
+class _TriRingSocialPanel extends ConsumerWidget {
   const _TriRingSocialPanel({
     required this.albums,
     required this.enabled,
@@ -358,7 +360,7 @@ class _TriRingSocialPanel extends StatelessWidget {
   final Set<String> selectedPhotoIds;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
     final photoEntries = [
       for (final album in albums)
@@ -373,6 +375,19 @@ class _TriRingSocialPanel extends StatelessWidget {
         .where((entry) => selectedPhotoIds.contains(entry.id))
         .take(3)
         .toList();
+    final agentRequest = TriRingAgentRequest(
+      socialEnabled: enabled,
+      selectedPhotos: [
+        for (final entry in selectedEntries)
+          TriRingAgentPhoto(
+            albumName: entry.albumName,
+            createdAt: entry.photo.createdAt,
+            id: entry.id,
+            title: entry.photo.title,
+          ),
+      ],
+    );
+    final agentPlan = ref.watch(triRingAgentPlanProvider(agentRequest));
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -416,6 +431,8 @@ class _TriRingSocialPanel extends StatelessWidget {
               const SizedBox(height: 14),
               _TriRingPreview(entries: selectedEntries),
               const SizedBox(height: 12),
+              _TriRingAgentInsight(plan: agentPlan),
+              const SizedBox(height: 12),
               Text(
                 '已选择 ${selectedPhotoIds.length}/3 张照片',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -448,6 +465,104 @@ class _TriRingSocialPanel extends StatelessWidget {
                 ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TriRingAgentInsight extends StatelessWidget {
+  const _TriRingAgentInsight({required this.plan});
+
+  final AsyncValue<TriRingAgentPlan> plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: plan.when(
+          data: (data) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 18, color: colors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      data.headline,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                data.guidance,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              for (final ring in data.rings)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 56,
+                        child: Text(
+                          ring.name,
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          ring.photoTitle == null
+                              ? ring.insight
+                              : '${ring.colorName} · ${ring.photoTitle}：${ring.insight}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          error: (_, __) => Text(
+            '智能体接口暂不可用，已保留本地三色环选择。',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.error,
+                ),
+          ),
+          loading: () => Row(
+            children: [
+              const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '智能体正在整理三色环...',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ),
     );
