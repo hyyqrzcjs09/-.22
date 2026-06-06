@@ -1,5 +1,5 @@
 abstract final class AppConfig {
-  static const appName = 'PhotoLink AR';
+  static const appName = 'encounter';
 
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
