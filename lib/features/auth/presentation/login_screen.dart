@@ -57,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '输入手机号获取验证码，验证成功后自动分配 PhotoLink ID。',
+                    '输入手机号获取验证码，验证成功后即可登录。',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 22),
@@ -97,7 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: FilledButton.icon(
                                 onPressed: _login,
                                 icon: const Icon(Icons.login),
-                                label: const Text('登录并分配 ID'),
+                                label: const Text('登陆成功'),
                               ),
                             )
                           else

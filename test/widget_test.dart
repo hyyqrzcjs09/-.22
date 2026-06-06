@@ -21,7 +21,7 @@ void main() {
     expect(find.text('验证码'), findsOneWidget);
 
     await tester.enterText(find.byType(TextFormField).last, '2026');
-    await tester.tap(find.text('登录并分配 ID'));
+    await tester.tap(find.text('登陆成功'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump(const Duration(milliseconds: 800));

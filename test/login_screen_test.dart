@@ -48,7 +48,7 @@ void main() {
       AlbumDisplayMode.detail,
     );
 
-    await tester.tap(find.text('登录并分配 ID'));
+    await tester.tap(find.text('登陆成功'));
     await tester.pumpAndSettle();
 
     final settings = container.read(userSettingsProvider);
