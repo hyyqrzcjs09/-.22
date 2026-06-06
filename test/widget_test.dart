@@ -10,9 +10,17 @@ void main() {
 
     expect(find.text('登录'), findsOneWidget);
     expect(find.text('手机号'), findsOneWidget);
-    expect(find.text('验证码'), findsOneWidget);
-    expect(find.text('相册背景颜色'), findsOneWidget);
+    expect(find.text('发送验证码'), findsOneWidget);
+    expect(find.text('验证码'), findsNothing);
+    expect(find.text('相册背景颜色'), findsNothing);
+    expect(find.text('地点漫游后的展示形式'), findsNothing);
 
+    await tester.tap(find.text('发送验证码'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('验证码'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).last, '2026');
     await tester.tap(find.text('登录并分配 ID'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));

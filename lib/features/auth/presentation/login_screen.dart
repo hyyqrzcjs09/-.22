@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/app_router.dart';
-import '../../../shared/widgets/album_color_picker.dart';
-import '../../../shared/widgets/album_display_mode_selector.dart';
 import '../../profile/application/user_settings.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,9 +13,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _codeController = TextEditingController(text: '2026');
+  final _codeController = TextEditingController();
   final _phoneController = TextEditingController(text: '13800000000');
   final _formKey = GlobalKey<FormState>();
+  bool _codeSent = false;
 
   @override
   void dispose() {
@@ -28,7 +27,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(userSettingsProvider);
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -38,7 +36,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              settings.albumBackgroundColor.withValues(alpha: 0.95),
+              colors.primaryContainer.withValues(alpha: 0.58),
               colors.surface,
             ],
           ),
@@ -59,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '使用手机号验证码登录，系统会自动分配 PhotoLink ID。',
+                    '输入手机号获取验证码，验证成功后自动分配 PhotoLink ID。',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 22),
@@ -71,6 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextFormField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
+                            enabled: !_codeSent,
                             decoration: const InputDecoration(
                               labelText: '手机号',
                               prefixIcon: Icon(Icons.phone_iphone),
@@ -78,80 +77,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             validator: _validatePhone,
                           ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _codeController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: '验证码',
-                              prefixIcon: const Icon(Icons.sms_outlined),
-                              border: const OutlineInputBorder(),
-                              suffixIcon: TextButton(
+                          if (_codeSent) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _codeController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: '验证码',
+                                prefixIcon: Icon(Icons.sms_outlined),
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: _validateCode,
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          if (_codeSent)
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _login,
+                                icon: const Icon(Icons.login),
+                                label: const Text('登录并分配 ID'),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
                                 onPressed: _sendCode,
-                                child: const Text('获取'),
+                                icon: const Icon(Icons.sms_outlined),
+                                label: const Text('发送验证码'),
                               ),
                             ),
-                            validator: _validateCode,
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _login,
-                              icon: const Icon(Icons.login),
-                              label: const Text('登录并分配 ID'),
-                            ),
-                          ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _LoginPanel(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '相册背景颜色',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '可自由设计相册背景色，地点漫游后的页面会同步使用该颜色。',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 12),
-                        AlbumColorPicker(
-                          selected: settings.albumBackgroundColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _LoginPanel(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '地点漫游后的展示形式',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '点击地图地点后，仅展示你选择的相册或相簿形式。',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 12),
-                        AlbumDisplayModeSelector(
-                          selected: settings.albumDisplayMode,
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -187,12 +146,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    setState(() => _codeSent = true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('验证码已发送（演示模式）')),
     );
   }
 
   void _login() {
+    if (!_codeSent) {
+      _sendCode();
+      return;
+    }
+
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }

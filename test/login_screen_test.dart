@@ -29,20 +29,23 @@ void main() {
     );
 
     expect(find.text('登录'), findsOneWidget);
+    expect(find.text('手机号'), findsOneWidget);
+    expect(find.text('发送验证码'), findsOneWidget);
+    expect(find.text('相册背景颜色'), findsNothing);
+    expect(find.text('地点漫游后的展示形式'), findsNothing);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -520));
+    await tester.tap(find.text('发送验证码'));
     await tester.pumpAndSettle();
 
-    expect(find.text('地点漫游后的展示形式'), findsOneWidget);
-    await tester.tap(find.text('相簿'));
-    await tester.pumpAndSettle();
+    expect(find.text('验证码'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).last, '2026');
 
     final context = tester.element(find.byType(LoginScreen));
     final container = ProviderScope.containerOf(context);
 
     expect(
       container.read(userSettingsProvider).albumDisplayMode,
-      AlbumDisplayMode.stack,
+      AlbumDisplayMode.detail,
     );
 
     await tester.tap(find.text('登录并分配 ID'));
