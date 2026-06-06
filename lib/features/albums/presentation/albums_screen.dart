@@ -1,19 +1,22 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../application/tri_ring_agent.dart';
+import '../../ar/application/ar_replay_bridge.dart';
 import '../../vr/application/memory_video_store.dart';
 import '../../vr/presentation/immersive_replay_screen.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 
-class AlbumsScreen extends StatefulWidget {
+class AlbumsScreen extends ConsumerStatefulWidget {
   const AlbumsScreen({super.key});
 
   @override
-  State<AlbumsScreen> createState() => _AlbumsScreenState();
+  ConsumerState<AlbumsScreen> createState() => _AlbumsScreenState();
 }
 
-class _AlbumsScreenState extends State<AlbumsScreen> {
+class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   final _albums = <_CategoryAlbum>[];
   final _triRingPhotoIds = {
     for (final type in TriRingType.values) type: <String>{},
@@ -37,6 +40,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
             });
           },
           onNfcAction: _handleNfcAction,
+          onStartArReplay: _startArReplay,
         ),
       );
     }
@@ -108,6 +112,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                 final album = _albums[index];
                 return _CategoryAlbumCard(
                   album: album,
+                  onStartArReplay: () => _startArReplay(album),
                   onCreateMemoryVideo: () => _createMemoryVideo(album),
                   onTap: () {
                     setState(() {
@@ -183,6 +188,47 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: MemoryVideoPlayer(video: video),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startArReplay(_CategoryAlbum album) async {
+    final plan = await ref.read(arReplayBridgeProvider).createReplay(
+          ArReplayRequest(
+            albumId: album.id,
+            albumName: album.name,
+            photos: [
+              for (final photo in album.photos)
+                ArReplayPhoto(
+                  createdAt: photo.createdAt,
+                  id: photo.id,
+                  title: photo.title,
+                ),
+            ],
+            sceneAnchor: ArSceneAnchor(
+              label: album.name,
+              sceneSignature: album.sceneSignature,
+            ),
+          ),
+        );
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已为「${album.name}」生成 AR 同场景重现')),
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: _ArReplayPanel(album: album, plan: plan),
         ),
       ),
     );
@@ -298,6 +344,7 @@ class _CreateAlbumDialogState extends State<_CreateAlbumDialog> {
 
     Navigator.of(context).pop(
       _CategoryAlbum(
+        id: 'album_${DateTime.now().microsecondsSinceEpoch}',
         icon: _selectedPreset.icon,
         photos: _seedPhotosForAlbum(
           _selectedPreset == _CategoryAlbumPreset.other
@@ -346,6 +393,277 @@ class _EmptyCategoryPanel extends StatelessWidget {
               label: const Text('建立文件夹'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArReplayPanel extends StatelessWidget {
+  const _ArReplayPanel({
+    required this.album,
+    required this.plan,
+  });
+
+  final _CategoryAlbum album;
+  final ArReplayPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.view_in_ar, color: colors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '${album.name} AR 同场景重现',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          plan.sceneMessage,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 14),
+        _ArMovingPhotoPreview(plan: plan),
+        const SizedBox(height: 14),
+        _ArReplayInfoTile(
+          icon: Icons.sensors_outlined,
+          title: plan.sceneMatched ? '同场景已命中' : '等待同场景识别',
+          subtitle: '场景签名：${album.sceneSignature}',
+        ),
+        _ArReplayInfoTile(
+          icon: Icons.animation_outlined,
+          title: '图片动效',
+          subtitle: plan.animationSummary,
+        ),
+        _ArReplayInfoTile(
+          icon: Icons.integration_instructions_outlined,
+          title: 'Unity 接口预留',
+          subtitle:
+              '${UnityArReplayBridge.channelName} · ${UnityArReplayBridge.createReplayMethod}',
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'AR 图片层',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: 8),
+        for (final overlay in plan.overlays)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundColor: colors.primaryContainer,
+              foregroundColor: colors.onPrimaryContainer,
+              child: Text('${overlay.slot + 1}'),
+            ),
+            title: Text(overlay.photoTitle),
+            subtitle: Text(
+                '${overlay.animation.label} · 景深 ${overlay.depth.toStringAsFixed(1)}m'),
+          ),
+      ],
+    );
+  }
+}
+
+class _ArReplayInfoTile extends StatelessWidget {
+  const _ArReplayInfoTile({
+    required this.icon,
+    required this.subtitle,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String subtitle;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: colors.outlineVariant),
+        ),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: colors.primary),
+        title: Text(title),
+        subtitle: Text(subtitle),
+      ),
+    );
+  }
+}
+
+class _ArMovingPhotoPreview extends StatefulWidget {
+  const _ArMovingPhotoPreview({required this.plan});
+
+  final ArReplayPlan plan;
+
+  @override
+  State<_ArMovingPhotoPreview> createState() => _ArMovingPhotoPreviewState();
+}
+
+class _ArMovingPhotoPreviewState extends State<_ArMovingPhotoPreview>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2600),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final overlays = widget.plan.overlays.take(5).toList();
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: SizedBox(
+        height: 220,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final phase = _controller.value * math.pi * 2;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          colors.primaryContainer.withValues(alpha: 0.6),
+                          colors.tertiaryContainer.withValues(alpha: 0.42),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const Positioned(
+                  top: 14,
+                  left: 14,
+                  child: Text('AR Scene Preview'),
+                ),
+                for (var index = 0; index < overlays.length; index++)
+                  _MovingArPhotoCard(
+                    overlay: overlays[index],
+                    phase: phase,
+                    index: index,
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _MovingArPhotoCard extends StatelessWidget {
+  const _MovingArPhotoCard({
+    required this.index,
+    required this.overlay,
+    required this.phase,
+  });
+
+  final int index;
+  final ArPhotoOverlay overlay;
+  final double phase;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final orbit = phase + index * 0.72;
+    final dx = math.cos(orbit) * (18 + index * 5);
+    final dy = math.sin(orbit) * (10 + index * 4);
+    final scale = 0.86 + math.sin(orbit) * 0.04;
+
+    return Transform.translate(
+      offset: Offset(dx + (index - 2) * 34, dy),
+      child: Transform.scale(
+        scale: scale,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 18,
+                color: Color(0x26000000),
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: 104,
+            height: 132,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        gradient: LinearGradient(
+                          colors: [
+                            colors.primaryContainer,
+                            colors.secondaryContainer,
+                          ],
+                        ),
+                      ),
+                      child: const Center(child: Icon(Icons.photo_outlined)),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    overlay.photoTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -805,11 +1123,13 @@ class _CategoryAlbumCard extends StatelessWidget {
   const _CategoryAlbumCard({
     required this.album,
     required this.onCreateMemoryVideo,
+    required this.onStartArReplay,
     required this.onTap,
   });
 
   final _CategoryAlbum album;
   final VoidCallback onCreateMemoryVideo;
+  final VoidCallback onStartArReplay;
   final VoidCallback onTap;
 
   @override
@@ -842,6 +1162,12 @@ class _CategoryAlbumCard extends StatelessWidget {
                         size: 20,
                         color: colors.secondary,
                       ),
+                    IconButton(
+                      tooltip: 'AR 同场景重现',
+                      onPressed: onStartArReplay,
+                      icon: const Icon(Icons.view_in_ar, size: 20),
+                      visualDensity: VisualDensity.compact,
+                    ),
                     IconButton(
                       tooltip: '剪辑回忆视频',
                       onPressed: onCreateMemoryVideo,
@@ -880,11 +1206,13 @@ class _AlbumDetailView extends StatelessWidget {
     required this.album,
     required this.onBack,
     required this.onNfcAction,
+    required this.onStartArReplay,
   });
 
   final _CategoryAlbum album;
   final VoidCallback onBack;
   final void Function(_CategoryAlbum album, _AlbumNfcAction action) onNfcAction;
+  final void Function(_CategoryAlbum album) onStartArReplay;
 
   @override
   Widget build(BuildContext context) {
@@ -926,6 +1254,12 @@ class _AlbumDetailView extends StatelessWidget {
                 ],
               ),
             ),
+            IconButton.filledTonal(
+              tooltip: 'AR 同场景重现',
+              onPressed: () => onStartArReplay(album),
+              icon: const Icon(Icons.view_in_ar),
+            ),
+            const SizedBox(width: 8),
             IconButton.filledTonal(
               tooltip: 'NFC 分享',
               onPressed: () => _showAlbumNfcSheet(context),
@@ -1052,24 +1386,32 @@ class _AlbumPhotoTile extends StatelessWidget {
 
 class _CategoryAlbum {
   _CategoryAlbum({
+    required this.id,
     required this.icon,
     required this.name,
     required this.photos,
   });
 
+  final String id;
   final IconData icon;
   bool isCollaborative = false;
   final String name;
   final List<_AlbumPhoto> photos;
+
+  String get sceneSignature {
+    return '$id:${photos.map((photo) => photo.id).join('|')}';
+  }
 }
 
 class _AlbumPhoto {
   const _AlbumPhoto({
     required this.createdAt,
+    required this.id,
     required this.title,
   });
 
   final DateTime createdAt;
+  final String id;
   final String title;
 }
 
@@ -1094,18 +1436,22 @@ List<_AlbumPhoto> _seedPhotosForAlbum(String albumName) {
   return [
     _AlbumPhoto(
       createdAt: DateTime(2026, 6, 6),
+      id: '${albumName}_photo_1',
       title: '$albumName 照片 1',
     ),
     _AlbumPhoto(
       createdAt: DateTime(2026, 6, 6),
+      id: '${albumName}_photo_2',
       title: '$albumName 照片 2',
     ),
     _AlbumPhoto(
       createdAt: DateTime(2026, 6, 5),
+      id: '${albumName}_photo_3',
       title: '$albumName 照片 3',
     ),
     _AlbumPhoto(
       createdAt: DateTime(2026, 5, 28),
+      id: '${albumName}_photo_4',
       title: '$albumName 照片 4',
     ),
   ];

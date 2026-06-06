@@ -29,6 +29,16 @@ void main() {
     expect(find.text('4 张照片'), findsOneWidget);
     expect(find.text('还没有回忆视频'), findsNothing);
 
+    await tester.tap(find.byTooltip('AR 同场景重现').first);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('家庭 AR 同场景重现'), findsOneWidget);
+    expect(find.text('Unity 接口预留'), findsOneWidget);
+    expect(find.text('AR 图片层'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 500));
+
     await tester.tap(find.byTooltip('剪辑回忆视频'));
     await tester.pump(const Duration(milliseconds: 500));
 
