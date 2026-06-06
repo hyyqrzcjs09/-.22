@@ -8,6 +8,12 @@ enum AlbumDisplayMode {
   stack,
 }
 
+enum TimeRoamDisplayMode {
+  year,
+  month,
+  day,
+}
+
 extension AlbumDisplayModeText on AlbumDisplayMode {
   String get label {
     return switch (this) {
@@ -17,10 +23,21 @@ extension AlbumDisplayModeText on AlbumDisplayMode {
   }
 }
 
+extension TimeRoamDisplayModeText on TimeRoamDisplayMode {
+  String get label {
+    return switch (this) {
+      TimeRoamDisplayMode.year => '年',
+      TimeRoamDisplayMode.month => '月',
+      TimeRoamDisplayMode.day => '日',
+    };
+  }
+}
+
 class UserSettings {
   const UserSettings({
     required this.albumBackgroundColor,
     required this.albumDisplayMode,
+    required this.timeRoamDisplayMode,
     this.phoneNumber,
     this.userId,
   });
@@ -28,6 +45,7 @@ class UserSettings {
   final Color albumBackgroundColor;
   final AlbumDisplayMode albumDisplayMode;
   final String? phoneNumber;
+  final TimeRoamDisplayMode timeRoamDisplayMode;
   final String? userId;
 
   bool get isLoggedIn => userId != null;
@@ -36,12 +54,14 @@ class UserSettings {
     Color? albumBackgroundColor,
     AlbumDisplayMode? albumDisplayMode,
     String? phoneNumber,
+    TimeRoamDisplayMode? timeRoamDisplayMode,
     String? userId,
   }) {
     return UserSettings(
       albumBackgroundColor: albumBackgroundColor ?? this.albumBackgroundColor,
       albumDisplayMode: albumDisplayMode ?? this.albumDisplayMode,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      timeRoamDisplayMode: timeRoamDisplayMode ?? this.timeRoamDisplayMode,
       userId: userId ?? this.userId,
     );
   }
@@ -53,6 +73,7 @@ class UserSettingsController extends Notifier<UserSettings> {
     return const UserSettings(
       albumBackgroundColor: Color(0xFFD5D7DA),
       albumDisplayMode: AlbumDisplayMode.detail,
+      timeRoamDisplayMode: TimeRoamDisplayMode.day,
     );
   }
 
@@ -78,6 +99,10 @@ class UserSettingsController extends Notifier<UserSettings> {
 
   void setAlbumDisplayMode(AlbumDisplayMode mode) {
     state = state.copyWith(albumDisplayMode: mode);
+  }
+
+  void setTimeRoamDisplayMode(TimeRoamDisplayMode mode) {
+    state = state.copyWith(timeRoamDisplayMode: mode);
   }
 }
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../profile/application/user_settings.dart';
 
 enum _DateMode { timeline, stack, calendar, magazine }
 
@@ -45,6 +46,27 @@ class _PhotosScreenState extends State<PhotosScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class TimeRoamView extends StatelessWidget {
+  const TimeRoamView({
+    required this.mode,
+    super.key,
+  });
+
+  final TimeRoamDisplayMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      child: switch (mode) {
+        TimeRoamDisplayMode.day => const _TimelineView(),
+        TimeRoamDisplayMode.month => const _CalendarView(),
+        TimeRoamDisplayMode.year => const _MagazineView(),
+      },
     );
   }
 }

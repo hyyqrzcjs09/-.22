@@ -15,7 +15,7 @@ class ProfileScreen extends ConsumerWidget {
     final colors = Theme.of(context).colorScheme;
 
     return AppScaffold(
-      selectedIndex: 3,
+      selectedIndex: 2,
       title: '我的',
       child: ListView(
         padding: const EdgeInsets.all(18),

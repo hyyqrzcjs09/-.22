@@ -6,9 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../photos/data/local_photo_repository.dart';
 import '../../photos/presentation/photo_map_view.dart';
+import '../../photos/presentation/photos_screen.dart';
 import '../../profile/application/user_settings.dart';
 
-enum _PlaceMode { map, stack, detail }
+enum _PlaceMode { map, stack, detail, time }
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -26,12 +27,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(userSettingsProvider);
-    final selectedMode = _placeModeFromSetting(settings.albumDisplayMode);
     final selectedPlace = _selectedPlace;
 
     return AppScaffold(
       selectedIndex: 0,
-      title: '地点链接',
+      title: '时空环',
       showAppBar: false,
       child: Stack(
         children: [
@@ -57,6 +57,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       backgroundColor: settings.albumBackgroundColor,
                       place: selectedPlace,
                     ),
+              _PlaceMode.time => TimeRoamView(
+                  key: ValueKey('time-${settings.timeRoamDisplayMode.name}'),
+                  mode: settings.timeRoamDisplayMode,
+                ),
             },
           ),
           SafeArea(
@@ -76,10 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             right: 18,
             bottom: 20,
             child: _PlaceModeBar(
-              displayMode: settings.albumDisplayMode,
-              hasSelectedPlace: _hasSelectedPlace,
               mode: _mode,
-              selectedPlaceMode: selectedMode,
               onChanged: _changePlaceMode,
             ),
           ),
@@ -106,6 +107,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _changePlaceMode(_PlaceMode mode) {
     if (mode == _PlaceMode.map) {
       _returnToMap();
+      return;
+    }
+
+    if (mode == _PlaceMode.time) {
+      setState(() {
+        _selectedPlace = null;
+        _mode = _PlaceMode.time;
+      });
       return;
     }
 
@@ -138,8 +147,11 @@ class _PlaceTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final title =
-        hasSelectedPlace && place != null ? place!.headerLabel : '地点链接 · 漫游地图';
+    final title = switch (mode) {
+      _PlaceMode.time => '时空环 · 时间漫游',
+      _ =>
+        hasSelectedPlace && place != null ? place!.headerLabel : '时空环 · 地图漫游',
+    };
 
     return Row(
       children: [
@@ -172,7 +184,7 @@ class _PlaceTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        if (hasSelectedPlace)
+        if (hasSelectedPlace && mode != _PlaceMode.time)
           DecoratedBox(
             decoration: BoxDecoration(
               color:
@@ -376,18 +388,12 @@ class _PlaceBackdrop extends StatelessWidget {
 
 class _PlaceModeBar extends StatelessWidget {
   const _PlaceModeBar({
-    required this.displayMode,
-    required this.hasSelectedPlace,
     required this.mode,
     required this.onChanged,
-    required this.selectedPlaceMode,
   });
 
-  final AlbumDisplayMode displayMode;
-  final bool hasSelectedPlace;
   final _PlaceMode mode;
   final ValueChanged<_PlaceMode> onChanged;
-  final _PlaceMode selectedPlaceMode;
 
   @override
   Widget build(BuildContext context) {
@@ -413,19 +419,16 @@ class _PlaceModeBar extends StatelessWidget {
               children: [
                 _PlaceModeButton(
                   icon: Icons.add_location_alt_outlined,
-                  label: '漫游地图',
+                  label: '地图漫游',
                   selected: mode == _PlaceMode.map,
                   onTap: () => onChanged(_PlaceMode.map),
                 ),
-                if (hasSelectedPlace)
-                  _PlaceModeButton(
-                    icon: displayMode == AlbumDisplayMode.detail
-                        ? Icons.grid_view_rounded
-                        : Icons.folder_rounded,
-                    label: displayMode.label,
-                    selected: mode == selectedPlaceMode,
-                    onTap: () => onChanged(selectedPlaceMode),
-                  ),
+                _PlaceModeButton(
+                  icon: Icons.schedule_outlined,
+                  label: '时间漫游',
+                  selected: mode == _PlaceMode.time,
+                  onTap: () => onChanged(_PlaceMode.time),
+                ),
               ],
             ),
           ),

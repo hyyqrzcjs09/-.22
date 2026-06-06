@@ -22,8 +22,8 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('地点链接 · 漫游地图'), findsOneWidget);
-    expect(find.text('漫游地图'), findsOneWidget);
+    expect(find.text('时空环 · 地图漫游'), findsOneWidget);
+    expect(find.text('地图漫游'), findsOneWidget);
     expect(find.text('相册'), findsNothing);
     expect(find.text('相簿'), findsNothing);
 
@@ -31,27 +31,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('学校 · 2 张照片'), findsOneWidget);
-    expect(find.text('相册'), findsOneWidget);
-    expect(find.text('相簿'), findsNothing);
-
-    await tester.tap(find.text('相册'));
-    await tester.pumpAndSettle();
-
     expect(find.text('学校'), findsOneWidget);
     expect(find.text('1 / 2'), findsOneWidget);
     expect(find.text('31.2990, 121.5036'), findsOneWidget);
+    expect(find.text('相册'), findsNothing);
+    expect(find.text('相簿'), findsNothing);
 
-    await tester.tap(find.text('漫游地图'));
+    await tester.tap(find.text('地图漫游'));
     await tester.pumpAndSettle();
 
-    expect(find.text('地点链接 · 漫游地图'), findsOneWidget);
+    expect(find.text('时空环 · 地图漫游'), findsOneWidget);
     expect(find.text('相册'), findsNothing);
     expect(find.text('相簿'), findsNothing);
 
     await tester.tap(find.text('学校'));
     await tester.pumpAndSettle();
 
-    expect(find.text('相册'), findsOneWidget);
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.text('相册'), findsNothing);
     expect(find.text('相簿'), findsNothing);
   });
 }

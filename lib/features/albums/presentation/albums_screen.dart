@@ -13,7 +13,9 @@ class AlbumsScreen extends StatefulWidget {
 
 class _AlbumsScreenState extends State<AlbumsScreen> {
   final _albums = <_CategoryAlbum>[];
+  final _triRingPhotoIds = <String>{};
   _CategoryAlbum? _openedAlbum;
+  bool _socialEnabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +23,8 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
     if (openedAlbum != null) {
       return AppScaffold(
-        selectedIndex: 2,
-        title: '分类',
+        selectedIndex: 1,
+        title: '比邻环',
         child: _AlbumDetailView(
           album: openedAlbum,
           onBack: () {
@@ -38,13 +40,13 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return AppScaffold(
-      selectedIndex: 2,
-      title: '分类',
+      selectedIndex: 1,
+      title: '比邻环',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            '分类相册',
+            '比邻环相册',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -66,6 +68,21 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                 icon: const Icon(Icons.add),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _TriRingSocialPanel(
+            albums: _albums,
+            enabled: _socialEnabled,
+            selectedPhotoIds: _triRingPhotoIds,
+            onPhotoToggled: _toggleTriRingPhoto,
+            onToggle: (enabled) {
+              setState(() {
+                _socialEnabled = enabled;
+                if (!enabled) {
+                  _triRingPhotoIds.clear();
+                }
+              });
+            },
           ),
           const SizedBox(height: 16),
           if (_albums.isEmpty)
@@ -111,6 +128,24 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
     setState(() {
       _albums.add(album);
+    });
+  }
+
+  void _toggleTriRingPhoto(String photoId) {
+    setState(() {
+      if (_triRingPhotoIds.contains(photoId)) {
+        _triRingPhotoIds.remove(photoId);
+        return;
+      }
+
+      if (_triRingPhotoIds.length >= 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('三色环最多选择 3 张照片')),
+        );
+        return;
+      }
+
+      _triRingPhotoIds.add(photoId);
     });
   }
 
@@ -289,7 +324,7 @@ class _EmptyCategoryPanel extends StatelessWidget {
                 size: 44, color: colors.primary),
             const SizedBox(height: 12),
             Text(
-              '还没有分类相册',
+              '还没有比邻环相册',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -305,6 +340,223 @@ class _EmptyCategoryPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TriRingSocialPanel extends StatelessWidget {
+  const _TriRingSocialPanel({
+    required this.albums,
+    required this.enabled,
+    required this.onPhotoToggled,
+    required this.onToggle,
+    required this.selectedPhotoIds,
+  });
+
+  final List<_CategoryAlbum> albums;
+  final bool enabled;
+  final ValueChanged<String> onPhotoToggled;
+  final ValueChanged<bool> onToggle;
+  final Set<String> selectedPhotoIds;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final photoEntries = [
+      for (final album in albums)
+        for (final photo in album.photos)
+          _TriRingPhotoEntry(
+            albumName: album.name,
+            id: '${album.name}-${photo.title}-${photo.createdAt.toIso8601String()}',
+            photo: photo,
+          ),
+    ];
+    final selectedEntries = photoEntries
+        .where((entry) => selectedPhotoIds.contains(entry.id))
+        .take(3)
+        .toList();
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.hub_outlined, color: colors.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '个人三色环 social',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      Text(
+                        enabled ? '选择照片形成三色环' : '关闭时保留原有比邻环功能',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(value: enabled, onChanged: onToggle),
+              ],
+            ),
+            if (enabled) ...[
+              const SizedBox(height: 14),
+              _TriRingPreview(entries: selectedEntries),
+              const SizedBox(height: 12),
+              Text(
+                '已选择 ${selectedPhotoIds.length}/3 张照片',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              if (photoEntries.isEmpty)
+                Text(
+                  '建立相册后即可从照片中选择三色环内容。',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final entry in photoEntries)
+                      FilterChip(
+                        avatar: const Icon(Icons.photo_outlined, size: 18),
+                        label:
+                            Text('${entry.albumName} · ${entry.photo.title}'),
+                        selected: selectedPhotoIds.contains(entry.id),
+                        onSelected: (_) => onPhotoToggled(entry.id),
+                      ),
+                  ],
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TriRingPreview extends StatelessWidget {
+  const _TriRingPreview({required this.entries});
+
+  final List<_TriRingPhotoEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    const ringColors = [
+      Color(0xFF22A7F2),
+      Color(0xFFFF6B5A),
+      Color(0xFFFFC857),
+    ];
+
+    return SizedBox(
+      height: 132,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          for (var index = 0; index < 3; index++)
+            Positioned(
+              left: 42 + index * 48,
+              top: index == 1 ? 26 : 8,
+              child: _TriRingCircle(
+                borderColor: ringColors[index],
+                label:
+                    index < entries.length ? entries[index].photo.title : '待选择',
+              ),
+            ),
+          if (entries.isEmpty)
+            Positioned(
+              bottom: 0,
+              child: Text(
+                '开启后选择照片生成 social 三色环',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TriRingCircle extends StatelessWidget {
+  const _TriRingCircle({
+    required this.borderColor,
+    required this.label,
+  });
+
+  final Color borderColor;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.86),
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: 7),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 18,
+            color: Color(0x22000000),
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: 92,
+        height: 92,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TriRingPhotoEntry {
+  const _TriRingPhotoEntry({
+    required this.albumName,
+    required this.id,
+    required this.photo,
+  });
+
+  final String albumName;
+  final String id;
+  final _AlbumPhoto photo;
 }
 
 class _CategoryAlbumCard extends StatelessWidget {
@@ -403,7 +655,7 @@ class _AlbumDetailView extends StatelessWidget {
         Row(
           children: [
             IconButton(
-              tooltip: '返回分类',
+              tooltip: '返回比邻环',
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back),
             ),

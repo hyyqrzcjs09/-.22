@@ -29,28 +29,21 @@ class AppScaffold extends StatelessWidget {
             case 0:
               context.go(AppRoutes.placeLinks);
             case 1:
-              context.go(AppRoutes.dates);
-            case 2:
               context.go(AppRoutes.categories);
-            case 3:
+            case 2:
               context.go(AppRoutes.profile);
           }
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.add_location_alt_outlined),
-            selectedIcon: Icon(Icons.add_location_alt),
-            label: '地点链接',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: '日期',
+            icon: Icon(Icons.all_inclusive),
+            selectedIcon: Icon(Icons.all_inclusive),
+            label: '时空环',
           ),
           NavigationDestination(
             icon: Icon(Icons.category_outlined),
             selectedIcon: Icon(Icons.category),
-            label: '分类',
+            label: '比邻环',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

@@ -59,4 +59,33 @@ void main() {
 
     expect(find.text('多人相册'), findsOneWidget);
   });
+
+  testWidgets('enables personal tri-ring social and selects photos',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AlbumsScreen(),
+      ),
+    );
+
+    expect(find.text('个人三色环 social'), findsOneWidget);
+    expect(find.text('关闭时保留原有比邻环功能'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('建立文件夹').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('创建'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(find.text('选择照片形成三色环'), findsOneWidget);
+    expect(find.text('已选择 0/3 张照片'), findsOneWidget);
+
+    await tester.tap(find.text('家庭 · 家庭 照片 1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已选择 1/3 张照片'), findsOneWidget);
+    expect(find.text('家庭 照片 1'), findsWidgets);
+  });
 }

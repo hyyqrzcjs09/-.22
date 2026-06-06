@@ -26,16 +26,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump(const Duration(milliseconds: 800));
 
-    expect(find.text('地点链接'), findsOneWidget);
-    expect(find.text('日期'), findsOneWidget);
-    expect(find.text('地点链接 · 漫游地图'), findsOneWidget);
-    expect(find.text('漫游地图'), findsOneWidget);
+    expect(find.text('时空环'), findsOneWidget);
+    expect(find.text('时空环 · 地图漫游'), findsOneWidget);
+    expect(find.text('地图漫游'), findsOneWidget);
     expect(find.text('相册'), findsNothing);
     expect(find.text('相簿'), findsNothing);
     expect(find.text('回忆'), findsNothing);
     expect(find.text('NFC'), findsNothing);
-    expect(find.text('分类'), findsOneWidget);
+    expect(find.text('比邻环'), findsOneWidget);
     expect(find.text('我的'), findsOneWidget);
+
+    await tester.tap(find.text('比邻环'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('个人三色环 social'), findsOneWidget);
+    expect(find.text('关闭时保留原有比邻环功能'), findsOneWidget);
 
     await tester.tap(find.text('我的'));
     await tester.pumpAndSettle();
