@@ -27,8 +27,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800));
 
     expect(find.text('时空环'), findsOneWidget);
-    expect(find.text('时空环 · 地图漫游'), findsOneWidget);
-    expect(find.text('地图漫游'), findsOneWidget);
+    expect(find.text('时空环 · 空间漫游'), findsOneWidget);
+    expect(find.text('空间漫游'), findsOneWidget);
+    expect(find.text('手账漫游'), findsOneWidget);
     expect(find.text('相册'), findsNothing);
     expect(find.text('相簿'), findsNothing);
     expect(find.text('回忆'), findsNothing);

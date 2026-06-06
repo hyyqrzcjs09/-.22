@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../photos/application/photo_map_providers.dart';
 import '../../photos/data/local_photo_repository.dart';
 import '../../photos/presentation/photo_map_view.dart';
 import '../../photos/presentation/photos_screen.dart';
 import '../../profile/application/user_settings.dart';
 
-enum _PlaceMode { map, stack, detail, time }
+enum _PlaceMode { map, stack, detail, time, journal }
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -61,6 +62,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   key: ValueKey('time-${settings.timeRoamDisplayMode.name}'),
                   mode: settings.timeRoamDisplayMode,
                 ),
+              _PlaceMode.journal => _JournalRoamView(
+                  key: ValueKey('journal-${settings.albumDisplayMode.name}'),
+                  backgroundColor: settings.albumBackgroundColor,
+                  displayMode: settings.albumDisplayMode,
+                ),
             },
           ),
           SafeArea(
@@ -110,10 +116,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    if (mode == _PlaceMode.time) {
+    if (mode == _PlaceMode.time || mode == _PlaceMode.journal) {
       setState(() {
         _selectedPlace = null;
-        _mode = _PlaceMode.time;
+        _mode = mode;
       });
       return;
     }
@@ -149,8 +155,9 @@ class _PlaceTopBar extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final title = switch (mode) {
       _PlaceMode.time => '时空环 · 时间漫游',
+      _PlaceMode.journal => '时空环 · 手账漫游',
       _ =>
-        hasSelectedPlace && place != null ? place!.headerLabel : '时空环 · 地图漫游',
+        hasSelectedPlace && place != null ? place!.headerLabel : '时空环 · 空间漫游',
     };
 
     return Row(
@@ -184,7 +191,9 @@ class _PlaceTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        if (hasSelectedPlace && mode != _PlaceMode.time)
+        if (hasSelectedPlace &&
+            mode != _PlaceMode.time &&
+            mode != _PlaceMode.journal)
           DecoratedBox(
             decoration: BoxDecoration(
               color:
@@ -358,6 +367,720 @@ class _PlaceDetailView extends StatelessWidget {
   }
 }
 
+class _JournalRoamView extends ConsumerWidget {
+  const _JournalRoamView({
+    required this.backgroundColor,
+    required this.displayMode,
+    super.key,
+  });
+
+  final Color backgroundColor;
+  final AlbumDisplayMode displayMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncMap = ref.watch(photoMapProvider);
+
+    return asyncMap.when(
+      loading: () => _JournalBackdrop(
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white,
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(18),
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+          ),
+        ),
+      ),
+      error: (error, stackTrace) => const _JournalBackdrop(
+        child: _JournalMessage(
+          icon: Icons.error_outline,
+          title: '手账读取失败',
+          subtitle: '稍后会继续使用本地照片重新生成。',
+        ),
+      ),
+      data: (result) => _JournalPage(
+        backgroundColor: backgroundColor,
+        displayMode: displayMode,
+        photos: result.photos,
+      ),
+    );
+  }
+}
+
+class _JournalPage extends StatelessWidget {
+  const _JournalPage({
+    required this.backgroundColor,
+    required this.displayMode,
+    required this.photos,
+  });
+
+  final Color backgroundColor;
+  final AlbumDisplayMode displayMode;
+  final List<PhotoMapItem> photos;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = _buildJournalEntries(photos);
+    final selectedDay = _selectJournalDay(entries, DateTime.now());
+
+    if (selectedDay == null) {
+      return const _JournalBackdrop(
+        child: _JournalMessage(
+          icon: Icons.photo_library_outlined,
+          title: '暂无照片可生成手账',
+          subtitle: '授权本地照片后，会自动按日期整理成每日手账。',
+        ),
+      );
+    }
+
+    final isToday = _isSameDay(selectedDay.date, DateTime.now());
+    final subtitle = isToday
+        ? '已根据今天的照片生成'
+        : '今天暂无照片，已显示最近一天：${_formatChineseDate(selectedDay.date)}';
+
+    return _JournalBackdrop(
+      child: ListView(
+        key: ValueKey('journal-${displayMode.name}-${selectedDay.key}'),
+        padding: const EdgeInsets.fromLTRB(20, 104, 20, 128),
+        children: [
+          _JournalHeader(
+            backgroundColor: backgroundColor,
+            count: selectedDay.entries.length,
+            displayMode: displayMode,
+            isToday: isToday,
+            subtitle: subtitle,
+          ),
+          const SizedBox(height: 16),
+          _JournalNotebook(
+            backgroundColor: backgroundColor,
+            day: selectedDay,
+            displayMode: displayMode,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JournalBackdrop extends StatelessWidget {
+  const _JournalBackdrop({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: Colors.white),
+      child: SizedBox.expand(child: child),
+    );
+  }
+}
+
+class _JournalMessage extends StatelessWidget {
+  const _JournalMessage({
+    required this.icon,
+    required this.subtitle,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String subtitle;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.white,
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 20,
+                color: Color(0x12000000),
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 34, color: const Color(0xFF202124)),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF666A73),
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalHeader extends StatelessWidget {
+  const _JournalHeader({
+    required this.backgroundColor,
+    required this.count,
+    required this.displayMode,
+    required this.isToday,
+    required this.subtitle,
+  });
+
+  final Color backgroundColor;
+  final int count;
+  final AlbumDisplayMode displayMode;
+  final bool isToday;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Color.alphaBlend(
+      backgroundColor.withValues(alpha: 0.16),
+      Colors.white,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE3E5E8)),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 18,
+            color: Color(0x10000000),
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const SizedBox(
+                width: 52,
+                height: 52,
+                child: Icon(Icons.auto_stories_outlined),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isToday ? '今日手账' : '最近手账',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '$subtitle · 偏好：${displayMode.label}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF666A73),
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            _JournalCountPill(count: count),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalNotebook extends StatelessWidget {
+  const _JournalNotebook({
+    required this.backgroundColor,
+    required this.day,
+    required this.displayMode,
+  });
+
+  final Color backgroundColor;
+  final _JournalDay day;
+  final AlbumDisplayMode displayMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE3E5E8)),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 26,
+            color: Color(0x12000000),
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 620;
+            final body = _JournalBody(
+              day: day,
+              displayMode: displayMode,
+            );
+
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _JournalDateRail(
+                    backgroundColor: backgroundColor,
+                    day: day,
+                    horizontal: true,
+                  ),
+                  const Divider(height: 30),
+                  body,
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 132,
+                  child: _JournalDateRail(
+                    backgroundColor: backgroundColor,
+                    day: day,
+                  ),
+                ),
+                const SizedBox(width: 22),
+                Expanded(child: body),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalDateRail extends StatelessWidget {
+  const _JournalDateRail({
+    required this.backgroundColor,
+    required this.day,
+    this.horizontal = false,
+  });
+
+  final Color backgroundColor;
+  final _JournalDay day;
+  final bool horizontal;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Color.alphaBlend(
+      backgroundColor.withValues(alpha: 0.14),
+      Colors.white,
+    );
+    final monthLabel = '${day.date.month}月';
+    final dayLabel = '${day.date.day}';
+    final countLabel = '${day.entries.length} 张';
+
+    if (horizontal) {
+      return Row(
+        children: [
+          _JournalDateBox(
+            accent: accent,
+            dayLabel: dayLabel,
+            monthLabel: monthLabel,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: _JournalDateMeta(
+              countLabel: countLabel,
+              date: day.date,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _JournalDateBox(
+          accent: accent,
+          dayLabel: dayLabel,
+          monthLabel: monthLabel,
+        ),
+        const SizedBox(height: 18),
+        Container(
+          width: 2,
+          height: 78,
+          color: const Color(0xFFE0E2E5),
+        ),
+        const SizedBox(height: 18),
+        _JournalDateMeta(
+          countLabel: countLabel,
+          date: day.date,
+        ),
+      ],
+    );
+  }
+}
+
+class _JournalDateBox extends StatelessWidget {
+  const _JournalDateBox({
+    required this.accent,
+    required this.dayLabel,
+    required this.monthLabel,
+  });
+
+  final Color accent;
+  final String dayLabel;
+  final String monthLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFD7DADF)),
+        borderRadius: BorderRadius.circular(8),
+        color: accent,
+      ),
+      child: SizedBox(
+        width: 104,
+        height: 112,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              monthLabel,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: const Color(0xFF575B63),
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              dayLabel,
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    color: const Color(0xFF111111),
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalDateMeta extends StatelessWidget {
+  const _JournalDateMeta({
+    required this.countLabel,
+    required this.date,
+  });
+
+  final String countLabel;
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _weekdayLabel(date),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          countLabel,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF666A73),
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _JournalBody extends StatelessWidget {
+  const _JournalBody({
+    required this.day,
+    required this.displayMode,
+  });
+
+  final _JournalDay day;
+  final AlbumDisplayMode displayMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (displayMode) {
+      AlbumDisplayMode.detail => _JournalGrid(day: day),
+      AlbumDisplayMode.stack => _JournalCollage(day: day),
+    };
+  }
+}
+
+class _JournalGrid extends StatelessWidget {
+  const _JournalGrid({required this.day});
+
+  final _JournalDay day;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 780
+            ? 4
+            : constraints.maxWidth >= 520
+                ? 3
+                : constraints.maxWidth >= 340
+                    ? 2
+                    : 1;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: day.entries.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+            childAspectRatio: 0.86,
+          ),
+          itemBuilder: (context, index) => _JournalPhotoTile(
+            entry: day.entries[index],
+            index: index,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _JournalCollage extends StatelessWidget {
+  const _JournalCollage({required this.day});
+
+  final _JournalDay day;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.clamp(280.0, 620.0).toDouble();
+        final cardWidth = math.min(168.0, math.max(118.0, width * 0.34));
+        final layouts = [
+          (left: width * 0.02, top: 42.0, angle: -0.16),
+          (left: width * 0.22, top: 16.0, angle: 0.08),
+          (left: width * 0.48, top: 48.0, angle: -0.06),
+          (left: width * 0.12, top: 210.0, angle: 0.13),
+          (left: width * 0.38, top: 192.0, angle: -0.11),
+          (left: width * 0.58, top: 218.0, angle: 0.07),
+        ];
+
+        return SizedBox(
+          height: 410,
+          child: Center(
+            child: SizedBox(
+              width: width,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    top: 88,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFFF7F7F8),
+                      ),
+                      child: const SizedBox(height: 210),
+                    ),
+                  ),
+                  for (var index = 0;
+                      index < math.min(day.entries.length, layouts.length);
+                      index++)
+                    Positioned(
+                      left: layouts[index].left,
+                      top: layouts[index].top,
+                      child: _JournalStickerTile(
+                        angle: layouts[index].angle,
+                        entry: day.entries[index],
+                        index: index,
+                        width: cardWidth,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _JournalPhotoTile extends StatelessWidget {
+  const _JournalPhotoTile({
+    required this.entry,
+    required this.index,
+  });
+
+  final _JournalPhotoEntry entry;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE3E5E8)),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _MemoryImageBlock(
+                colors: _journalPaletteFor(entry.areaType, index),
+                icon: _iconForAreaType(entry.areaType),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              entry.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _formatTime(entry.date),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF6B7280),
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalStickerTile extends StatelessWidget {
+  const _JournalStickerTile({
+    required this.angle,
+    required this.entry,
+    required this.index,
+    required this.width,
+  });
+
+  final double angle;
+  final _JournalPhotoEntry entry;
+  final int index;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: angle,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.white,
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 18,
+              color: Color(0x22000000),
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          width: width,
+          height: width * 1.24,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(9, 9, 9, width * 0.24),
+            child: _MemoryImageBlock(
+              colors: _journalPaletteFor(entry.areaType, index),
+              icon: _iconForAreaType(entry.areaType),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalCountPill extends StatelessWidget {
+  const _JournalCountPill({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: const Color(0xFF202124),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Text(
+          '$count 张',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PlaceBackdrop extends StatelessWidget {
   const _PlaceBackdrop({
     required this.backgroundColor,
@@ -419,7 +1142,7 @@ class _PlaceModeBar extends StatelessWidget {
               children: [
                 _PlaceModeButton(
                   icon: Icons.add_location_alt_outlined,
-                  label: '地图漫游',
+                  label: '空间漫游',
                   selected: mode == _PlaceMode.map,
                   onTap: () => onChanged(_PlaceMode.map),
                 ),
@@ -428,6 +1151,12 @@ class _PlaceModeBar extends StatelessWidget {
                   label: '时间漫游',
                   selected: mode == _PlaceMode.time,
                   onTap: () => onChanged(_PlaceMode.time),
+                ),
+                _PlaceModeButton(
+                  icon: Icons.auto_stories_outlined,
+                  label: '手账漫游',
+                  selected: mode == _PlaceMode.journal,
+                  onTap: () => onChanged(_PlaceMode.journal),
                 ),
               ],
             ),
@@ -653,4 +1382,153 @@ IconData _iconForAreaType(PhotoAreaType areaType) {
     PhotoAreaType.life => Icons.apartment_outlined,
     PhotoAreaType.other => Icons.landscape_outlined,
   };
+}
+
+class _JournalDay {
+  const _JournalDay({
+    required this.date,
+    required this.entries,
+  });
+
+  final DateTime date;
+  final List<_JournalPhotoEntry> entries;
+
+  String get key => '${date.year}-${date.month}-${date.day}';
+}
+
+class _JournalPhotoEntry {
+  const _JournalPhotoEntry({
+    required this.areaType,
+    required this.date,
+    required this.title,
+  });
+
+  final PhotoAreaType areaType;
+  final DateTime date;
+  final String title;
+}
+
+List<_JournalPhotoEntry> _buildJournalEntries(List<PhotoMapItem> photos) {
+  if (photos.isEmpty) {
+    return _fallbackJournalEntries();
+  }
+
+  return [
+    for (var index = 0; index < photos.length; index++)
+      _JournalPhotoEntry(
+        areaType: photos[index].areaType,
+        date: photos[index].createdAt ?? _fallbackJournalDate(index),
+        title: photos[index].title.trim().isEmpty
+            ? '${photos[index].areaType.label}照片 ${index + 1}'
+            : photos[index].title,
+      ),
+  ];
+}
+
+List<_JournalPhotoEntry> _fallbackJournalEntries() {
+  const titles = [
+    '晨间街角',
+    '校园光影',
+    '午后展馆',
+    '夜色散步',
+    '车窗风景',
+    '归家餐桌',
+  ];
+  const areaTypes = [
+    PhotoAreaType.life,
+    PhotoAreaType.school,
+    PhotoAreaType.attraction,
+    PhotoAreaType.life,
+    PhotoAreaType.other,
+    PhotoAreaType.life,
+  ];
+
+  return [
+    for (var index = 0; index < titles.length; index++)
+      _JournalPhotoEntry(
+        areaType: areaTypes[index],
+        date: _fallbackJournalDate(index),
+        title: titles[index],
+      ),
+  ];
+}
+
+DateTime _fallbackJournalDate(int index) {
+  return switch (index % 6) {
+    0 => DateTime(2026, 6, 6, 8, 32),
+    1 => DateTime(2026, 6, 6, 10, 18),
+    2 => DateTime(2026, 6, 6, 15, 46),
+    3 => DateTime(2026, 6, 5, 19, 20),
+    4 => DateTime(2026, 6, 5, 21, 6),
+    _ => DateTime(2026, 5, 28, 12, 40),
+  };
+}
+
+_JournalDay? _selectJournalDay(
+  List<_JournalPhotoEntry> entries,
+  DateTime now,
+) {
+  if (entries.isEmpty) {
+    return null;
+  }
+
+  final today = _dateOnly(now);
+  final grouped = <DateTime, List<_JournalPhotoEntry>>{};
+
+  for (final entry in entries) {
+    final date = _dateOnly(entry.date);
+    grouped.putIfAbsent(date, () => []).add(entry);
+  }
+
+  final sortedDays = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+  var selectedDate = sortedDays.first;
+
+  for (final day in sortedDays) {
+    if (!day.isAfter(today)) {
+      selectedDate = day;
+      break;
+    }
+  }
+
+  final selectedEntries = List<_JournalPhotoEntry>.from(
+    grouped[selectedDate] ?? const [],
+  )..sort((a, b) => a.date.compareTo(b.date));
+
+  return _JournalDay(
+    date: selectedDate,
+    entries: selectedEntries,
+  );
+}
+
+DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String _formatChineseDate(DateTime date) {
+  return '${date.year}年${date.month}月${date.day}日';
+}
+
+String _formatTime(DateTime date) {
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+String _weekdayLabel(DateTime date) {
+  const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  return labels[date.weekday - 1];
+}
+
+List<Color> _journalPaletteFor(PhotoAreaType areaType, int index) {
+  const palettes = [
+    [Color(0xFF111111), Color(0xFFE5E7EB)],
+    [Color(0xFF3F3F46), Color(0xFFF4F4F5)],
+    [Color(0xFF71717A), Color(0xFFD4D4D8)],
+    [Color(0xFF18181B), Color(0xFFA1A1AA)],
+    [Color(0xFF52525B), Color(0xFFFAFAFA)],
+  ];
+
+  return palettes[(areaType.index + index).abs() % palettes.length];
 }
