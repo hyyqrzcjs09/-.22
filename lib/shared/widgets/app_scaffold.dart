@@ -27,32 +27,32 @@ class AppScaffold extends StatelessWidget {
         onDestinationSelected: (index) {
           switch (index) {
             case 0:
-              context.go(AppRoutes.home);
+              context.go(AppRoutes.placeLinks);
             case 1:
-              context.go(AppRoutes.photos);
+              context.go(AppRoutes.dates);
             case 2:
-              context.go(AppRoutes.albums);
+              context.go(AppRoutes.memories);
             case 3:
               context.go(AppRoutes.nfc);
             case 4:
-              context.go(AppRoutes.replay);
+              context.go(AppRoutes.categories);
           }
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: '首页',
+            icon: Icon(Icons.add_location_alt_outlined),
+            selectedIcon: Icon(Icons.add_location_alt),
+            label: '地点链接',
           ),
           NavigationDestination(
-            icon: Icon(Icons.photo_outlined),
-            selectedIcon: Icon(Icons.photo),
-            label: '照片',
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: '日期',
           ),
           NavigationDestination(
-            icon: Icon(Icons.collections_outlined),
-            selectedIcon: Icon(Icons.collections),
-            label: '相册',
+            icon: Icon(Icons.auto_awesome_motion_outlined),
+            selectedIcon: Icon(Icons.auto_awesome_motion),
+            label: '回忆',
           ),
           NavigationDestination(
             icon: Icon(Icons.nfc_outlined),
@@ -60,9 +60,9 @@ class AppScaffold extends StatelessWidget {
             label: 'NFC',
           ),
           NavigationDestination(
-            icon: Icon(Icons.view_in_ar_outlined),
-            selectedIcon: Icon(Icons.view_in_ar),
-            label: '回放',
+            icon: Icon(Icons.category_outlined),
+            selectedIcon: Icon(Icons.category),
+            label: '分类',
           ),
         ],
       ),

@@ -9,15 +9,15 @@ class ImmersiveReplayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      selectedIndex: 4,
-      title: '沉浸式回放',
+      selectedIndex: 2,
+      title: '回忆',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: const [
           PlaceholderPanel(
             icon: Icons.play_circle_outline,
-            title: '照片回放体验',
-            subtitle: '第一版先实现照片全屏播放、自动转场、暂停继续和横屏模式。',
+            title: '回忆重现',
+            subtitle: '这里用于播放照片回忆、VR 视频或沉浸式场景，后续会连接照片集合和 NFC 内容。',
           ),
         ],
       ),

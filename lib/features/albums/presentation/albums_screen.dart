@@ -9,15 +9,15 @@ class AlbumsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      selectedIndex: 2,
-      title: '相册',
+      selectedIndex: 4,
+      title: '分类',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: const [
           PlaceholderPanel(
-            icon: Icons.collections_bookmark_outlined,
-            title: '创建第一个相册',
-            subtitle: '相册会作为 NFC 绑定和沉浸式回放的核心内容单元。',
+            icon: Icons.category_outlined,
+            title: '照片分类',
+            subtitle: '这里用于按学校、景点、生活区等类型管理照片，后续会连接地图聚合和筛选。',
           ),
         ],
       ),

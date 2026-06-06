@@ -7,35 +7,35 @@ import '../features/photos/presentation/photos_screen.dart';
 import '../features/vr/presentation/immersive_replay_screen.dart';
 
 abstract final class AppRoutes {
-  static const home = '/';
-  static const photos = '/photos';
-  static const albums = '/albums';
+  static const placeLinks = '/';
+  static const dates = '/dates';
+  static const memories = '/memories';
   static const nfc = '/nfc';
-  static const replay = '/vr';
+  static const categories = '/categories';
 }
 
 final appRouter = GoRouter(
-  initialLocation: AppRoutes.home,
+  initialLocation: AppRoutes.placeLinks,
   routes: [
     GoRoute(
-      path: AppRoutes.home,
+      path: AppRoutes.placeLinks,
       builder: (context, state) => const HomeScreen(),
     ),
     GoRoute(
-      path: AppRoutes.photos,
+      path: AppRoutes.dates,
       builder: (context, state) => const PhotosScreen(),
     ),
     GoRoute(
-      path: AppRoutes.albums,
-      builder: (context, state) => const AlbumsScreen(),
+      path: AppRoutes.memories,
+      builder: (context, state) => const ImmersiveReplayScreen(),
     ),
     GoRoute(
       path: AppRoutes.nfc,
       builder: (context, state) => const NfcScreen(),
     ),
     GoRoute(
-      path: AppRoutes.replay,
-      builder: (context, state) => const ImmersiveReplayScreen(),
+      path: AppRoutes.categories,
+      builder: (context, state) => const AlbumsScreen(),
     ),
   ],
 );
