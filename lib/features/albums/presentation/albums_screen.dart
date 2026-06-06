@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../vr/application/memory_video_store.dart';
+import '../../vr/presentation/immersive_replay_screen.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 
 class AlbumsScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
     if (openedAlbum != null) {
       return AppScaffold(
-        selectedIndex: 3,
+        selectedIndex: 2,
         title: '分类',
         child: _AlbumDetailView(
           album: openedAlbum,
@@ -37,7 +38,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return AppScaffold(
-      selectedIndex: 3,
+      selectedIndex: 2,
       title: '分类',
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -93,6 +94,8 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                 );
               },
             ),
+          const SizedBox(height: 24),
+          const MemoryVideoSection(),
         ],
       ),
     );

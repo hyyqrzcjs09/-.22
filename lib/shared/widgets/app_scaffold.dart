@@ -31,8 +31,6 @@ class AppScaffold extends StatelessWidget {
             case 1:
               context.go(AppRoutes.dates);
             case 2:
-              context.go(AppRoutes.memories);
-            case 3:
               context.go(AppRoutes.categories);
           }
         },
@@ -46,11 +44,6 @@ class AppScaffold extends StatelessWidget {
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: '日期',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_motion_outlined),
-            selectedIcon: Icon(Icons.auto_awesome_motion),
-            label: '回忆',
           ),
           NavigationDestination(
             icon: Icon(Icons.category_outlined),

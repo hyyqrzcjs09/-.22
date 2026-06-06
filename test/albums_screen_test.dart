@@ -32,6 +32,7 @@ void main() {
 
     expect(MemoryVideoStore.instance.videos, hasLength(1));
     expect(MemoryVideoStore.instance.videos.first.albumName, '家庭');
+    expect(find.text('家庭 回忆视频'), findsOneWidget);
 
     await tester.tap(find.text('家庭'));
     await tester.pumpAndSettle();

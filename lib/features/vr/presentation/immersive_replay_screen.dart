@@ -2,49 +2,51 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../shared/widgets/app_scaffold.dart';
 import '../application/memory_video_store.dart';
 
-class ImmersiveReplayScreen extends StatelessWidget {
-  const ImmersiveReplayScreen({super.key});
+class MemoryVideoSection extends StatelessWidget {
+  const MemoryVideoSection({
+    this.emptyMessage = '点击相册右上角的 VR 图标，即可把相册内容剪辑成视频并在这里直接播放。',
+    super.key,
+  });
+
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      selectedIndex: 2,
-      title: '回忆',
-      child: AnimatedBuilder(
-        animation: MemoryVideoStore.instance,
-        builder: (context, _) {
-          final videos = MemoryVideoStore.instance.videos;
+    return AnimatedBuilder(
+      animation: MemoryVideoStore.instance,
+      builder: (context, _) {
+        final videos = MemoryVideoStore.instance.videos;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                '视频速览',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              if (videos.isEmpty)
-                const _EmptyMemoryPanel()
-              else
-                for (final video in videos) ...[
-                  _MemoryVideoPreviewCard(video: video),
-                  const SizedBox(height: 14),
-                ],
-            ],
-          );
-        },
-      ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '回忆视频',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            if (videos.isEmpty)
+              _EmptyMemoryPanel(message: emptyMessage)
+            else
+              for (final video in videos) ...[
+                _MemoryVideoPreviewCard(video: video),
+                const SizedBox(height: 14),
+              ],
+          ],
+        );
+      },
     );
   }
 }
 
 class _EmptyMemoryPanel extends StatelessWidget {
-  const _EmptyMemoryPanel();
+  const _EmptyMemoryPanel({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +72,7 @@ class _EmptyMemoryPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '在分类页点击相册右上角的 VR 图标，即可把相册内容剪辑成视频。',
+              message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
