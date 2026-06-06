@@ -25,3 +25,5 @@ Thumbs.db
 .env
 *.keystore
 *.jks
+env.json
+*.env.json

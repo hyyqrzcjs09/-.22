@@ -74,3 +74,32 @@ lib/
     profile/
   shared/
 ```
+
+## 本地运行与 Mapbox Token 配置
+
+Mapbox token 不写入仓库，通过本地文件在编译期注入（`--dart-define-from-file`）。
+
+1. 复制模板为本地配置（`env.json` 已被 `.gitignore` 忽略，不会上传）：
+
+   ```bash
+   cp env.example.json env.json
+   ```
+
+2. 在 `env.json` 填入你的 Mapbox access token（申请：https://account.mapbox.com/access-tokens/）：
+
+   ```json
+   {
+     "MAPBOX_ACCESS_TOKEN": "pk.your_real_token",
+     "MAPBOX_STYLE": "mapbox://styles/mapbox/satellite-streets-v12",
+     "API_BASE_URL": "https://api.example.com"
+   }
+   ```
+
+3. 用本地配置运行 / 构建：
+
+   ```bash
+   flutter run --dart-define-from-file=env.json
+   flutter build apk --dart-define-from-file=env.json
+   ```
+
+未配置 token 时，空间漫游地图会显示占位提示条；配置后即加载完整 Mapbox 地图瓦片。
