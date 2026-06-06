@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { 
-  MapPin, Grid as GridIcon, Folder, Menu, LayoutGrid, CalendarDays, 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  MapPin, Grid as GridIcon, Folder, Menu, LayoutGrid, CalendarDays,
   Clock, Map as MapViewIcon, ChevronLeft, CheckCircle2, Circle,
   Signal, Wifi, Battery, MapPinned, X, Edit2, LayoutTemplate, Map,
-  Activity, Pause, Square, User, Plus, Images
+  Activity, Pause, Square, User, Plus, Images, Globe
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'motion/react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { MAPBOX_TOKEN, MAPBOX_STYLE } from '../lib/mapbox';
+import { applySoftGreenParksTheme, setMapLabelsToChinese } from '../lib/mapboxTheme';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -17,47 +21,53 @@ function cn(...inputs: ClassValue[]) {
 const mapBgUrl = 'https://images.unsplash.com/photo-1568317711805-97917847953d?q=80&w=1080';
 
 const rawPhotos = [
-  { id: '1', url: 'https://images.unsplash.com/photo-1691201200746-9a95b64a3436?q=80&w=400', date: '2023/5/29 20:46', coordsString: '51.6916, -0.4174', album: '英国' },
-  { id: '2', url: 'https://images.unsplash.com/photo-1575223970966-76ae61ee7838?q=80&w=400', date: '2023/5/30 14:20', coordsString: '51.5074, -0.1278', album: '英国' },
-  { id: '3', url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=400', date: '2023/5/28 10:15', coordsString: '51.5033, -0.1195', album: '英国' },
-  { id: '4', url: 'https://images.unsplash.com/photo-1589489873423-d1745278a8f4?q=80&w=400', date: '2023/6/02 09:00', coordsString: '57.2736, -4.5196', album: '英国' },
-  { id: '5', url: 'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?q=80&w=400', date: '2023/6/15 18:30', coordsString: '51.4545, -2.5879', album: '兔子🐶' },
-  { id: '6', url: 'https://images.unsplash.com/photo-1747160262337-68a64efb183c?q=80&w=400', date: '2023/6/14 12:00', coordsString: '51.7520, -1.2577', album: '做饭' },
-  { id: '7', url: 'https://images.unsplash.com/photo-1617634667039-8e4cb277ab46?q=80&w=400', date: '2023/6/14 08:45', coordsString: '51.3810, -2.3590', album: 'Picslog' },
-  { id: '8', url: 'https://images.unsplash.com/photo-1556609894-0ae309cb8354?q=80&w=400', date: '2023/6/12 16:20', coordsString: '50.7192, -1.8808', album: 'Picslog' },
-  { id: '9', url: 'https://images.unsplash.com/photo-1539136788836-5699e78bfc75?q=80&w=400', date: '2023/6/12 13:00', coordsString: '51.4416, -0.1528', album: '做饭' },
-  { id: '10', url: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=400', date: '2023/6/10 20:00', coordsString: '51.5560, -0.2795', album: 'G.E.M' },
+  { id: '1', url: 'https://images.unsplash.com/photo-1691201200746-9a95b64a3436?q=80&w=400', date: '2023/5/29 20:46', coordsString: '32.0760, 118.7970', album: '南京' },
+  { id: '2', url: 'https://images.unsplash.com/photo-1575223970966-76ae61ee7838?q=80&w=400', date: '2023/5/30 14:20', coordsString: '32.0419, 118.7780', album: '南京' },
+  { id: '3', url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=400', date: '2023/5/28 10:15', coordsString: '32.0220, 118.7880', album: '南京' },
+  { id: '4', url: 'https://images.unsplash.com/photo-1589489873423-d1745278a8f4?q=80&w=400', date: '2023/6/02 09:00', coordsString: '32.0660, 118.7770', album: '南京' },
+  { id: '5', url: 'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?q=80&w=400', date: '2023/6/15 18:30', coordsString: '32.0610, 118.8530', album: '兔子🐶' },
+  { id: '6', url: 'https://images.unsplash.com/photo-1747160262337-68a64efb183c?q=80&w=400', date: '2023/6/14 12:00', coordsString: '32.0500, 118.7900', album: '做饭' },
+  { id: '7', url: 'https://images.unsplash.com/photo-1617634667039-8e4cb277ab46?q=80&w=400', date: '2023/6/14 08:45', coordsString: '32.0150, 118.7910', album: 'Picslog' },
+  { id: '8', url: 'https://images.unsplash.com/photo-1556609894-0ae309cb8354?q=80&w=400', date: '2023/6/12 16:20', coordsString: '32.0840, 118.7920', album: 'Picslog' },
+  { id: '9', url: 'https://images.unsplash.com/photo-1539136788836-5699e78bfc75?q=80&w=400', date: '2023/6/12 13:00', coordsString: '32.0360, 118.7700', album: '做饭' },
+  { id: '10', url: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=400', date: '2023/6/10 20:00', coordsString: '32.0560, 118.8000', album: 'G.E.M' },
 ];
 
+// 南京主城区的照片地点（真实经纬度）
 const mapLocations = [
   {
     id: 'loc1',
-    name: 'Edinburgh',
+    name: '玄武湖',
     coords: { x: 40, y: 35 },
+    lngLat: [118.7970, 32.0760] as [number, number],
     photos: [rawPhotos[0], rawPhotos[1], rawPhotos[2], rawPhotos[3], rawPhotos[4], rawPhotos[5], rawPhotos[6], rawPhotos[7]]
   },
   {
     id: 'loc2',
-    name: 'London',
+    name: '新街口',
     coords: { x: 55, y: 65 },
+    lngLat: [118.7780, 32.0419] as [number, number],
     photos: [rawPhotos[8], rawPhotos[9], rawPhotos[2]]
   },
   {
     id: 'loc3',
-    name: 'Highlands',
+    name: '鼓楼',
     coords: { x: 30, y: 20 },
+    lngLat: [118.7770, 32.0660] as [number, number],
     photos: [rawPhotos[3]]
   },
   {
     id: 'loc4',
-    name: 'Oxford',
+    name: '夫子庙',
     coords: { x: 48, y: 55 },
+    lngLat: [118.7880, 32.0220] as [number, number],
     photos: [rawPhotos[5], rawPhotos[6]]
   },
   {
     id: 'loc5',
-    name: 'Bath',
+    name: '明故宫',
     coords: { x: 45, y: 70 },
+    lngLat: [118.8090, 32.0440] as [number, number],
     photos: [rawPhotos[7], rawPhotos[0], rawPhotos[1], rawPhotos[4]]
   }
 ];
@@ -160,7 +170,7 @@ const calendarDays = [
 
 // --- APP COMPONENT ---
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'map' | 'photos' | 'albums'>('photos'); // Starting on Photos for easy preview
+  const [activeTab, setActiveTab] = useState<'map' | 'photos' | 'albums'>('map'); // 打开即进入南京主城区漫游地图
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-neutral-100 p-4 font-sans selection:bg-[#0A84FF]/30">
@@ -259,72 +269,249 @@ function TabButton({ icon, label, isActive, onClick }: { icon: React.ReactNode, 
 
 type ViewMode = 'scatter' | 'single';
 
+// 缩放到此级别以下时，照片缩略图收缩成地图上的小蓝点（避免多个大圆挤在一起脱离地球）
+const FAR_ZOOM = 11;
+
+// 构建一个地点的 marker DOM：包含「照片缩略图」与「蓝点」两层，按 zoom 切换显示
+function createLocationMarkerEl(loc: typeof mapLocations[0]): HTMLElement {
+  const wrapper = document.createElement('div');
+  // 注意：不要设 position，让 mapbox 自带的 .mapboxgl-marker{position:absolute} 生效，
+  // 否则内联 position:relative 会覆盖它，导致所有 marker 在文档流里按 56px 堆叠、脱离地理位置。
+  wrapper.style.cssText = 'width:56px;height:56px;cursor:pointer;';
+  wrapper.className = 'roam-marker';
+
+  // —— 放大时：白边圆形照片缩略图 + 数量角标 ——
+  const thumb = document.createElement('div');
+  thumb.className = 'roam-thumb';
+  thumb.style.cssText = 'position:absolute;inset:0;';
+
+  const ring = document.createElement('div');
+  ring.style.cssText =
+    'width:56px;height:56px;border-radius:9999px;border:3px solid #fff;overflow:hidden;background:#e5e7eb;box-shadow:0 4px 12px rgba(0,0,0,0.25);';
+  const img = document.createElement('img');
+  img.src = loc.photos[0].url;
+  img.alt = loc.name;
+  img.draggable = false;
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+  ring.appendChild(img);
+  thumb.appendChild(ring);
+
+  if (loc.photos.length > 1) {
+    const badge = document.createElement('div');
+    badge.textContent = String(loc.photos.length);
+    badge.style.cssText =
+      'position:absolute;top:-4px;right:-8px;min-width:22px;height:22px;padding:0 6px;border-radius:9999px;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box;';
+    thumb.appendChild(badge);
+  }
+  wrapper.appendChild(thumb);
+
+  // —— 缩小时：地图上的一个小蓝点（精确锚定在经纬度） ——
+  const dot = document.createElement('div');
+  dot.className = 'roam-dot';
+  dot.style.cssText =
+    'position:absolute;top:50%;left:50%;width:14px;height:14px;transform:translate(-50%,-50%);border-radius:9999px;background:#0A84FF;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:none;';
+  wrapper.appendChild(dot);
+
+  return wrapper;
+}
+
+// 根据当前 zoom 切换每个 marker 显示「照片缩略图」还是「蓝点」
+function applyMarkerZoomStyle(els: HTMLElement[], zoom: number) {
+  const far = zoom < FAR_ZOOM;
+  for (const el of els) {
+    const thumb = el.querySelector<HTMLElement>('.roam-thumb');
+    const dot = el.querySelector<HTMLElement>('.roam-dot');
+    if (thumb) thumb.style.display = far ? 'none' : 'block';
+    if (dot) dot.style.display = far ? 'block' : 'none';
+  }
+}
+
 function MapScreen() {
   const [activeLoc, setActiveLoc] = useState<typeof mapLocations[0] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('scatter');
   const [currentIndex, setCurrentIndex] = useState(0);
+  // 散开动画的起点（相对屏幕中心的像素偏移），点击 marker 时按地图投影实时计算
+  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const originX = origin.x;
+  const originY = origin.y;
 
-  // Calculate the pixel offset from the center of the screen based on percentages
-  const originX = activeLoc ? (activeLoc.coords.x / 100 * 393) - (393 / 2) : 0;
-  const originY = activeLoc ? (activeLoc.coords.y / 100 * 852) - (852 / 2) : 0;
+  const mapContainer = useRef<HTMLDivElement | null>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+
+  // 地球自转
+  const [spinning, setSpinning] = useState(false);
+  const spinningRef = useRef(false);
+  const userInteractingRef = useRef(false);
+  const spinGlobeRef = useRef<() => void>(() => {});
+
+  // 自转速度（倍率）
+  const [spinSpeed, setSpinSpeed] = useState(1);
+  const spinSpeedRef = useRef(1);
+  const setSpeed = (v: number) => { spinSpeedRef.current = v; setSpinSpeed(v); };
 
   const closeOverlay = () => {
     setActiveLoc(null);
   };
 
+  // 切换地球自转：放大状态下先飞回地球视图再转
+  const toggleSpin = () => {
+    const v = !spinningRef.current;
+    spinningRef.current = v;
+    setSpinning(v);
+    const m = map.current;
+    if (!m) return;
+    if (v) {
+      if (m.getZoom() > 4.5) {
+        m.flyTo({ center: [118.793, 32.049], zoom: 2.6, duration: 1600 }); // moveend 后自动开始转
+      } else {
+        spinGlobeRef.current();
+      }
+    } else {
+      m.stop(); // 停止当前缓动
+    }
+  };
+
+  // 初始化 Mapbox 地图与照片地点 marker
+  useEffect(() => {
+    if (!mapContainer.current || map.current) return;
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: MAPBOX_STYLE,
+      center: [118.793, 32.049], // 南京主城区（点群中心）
+      zoom: 12.2,
+      attributionControl: false,
+      interactive: true,
+    });
+
+    map.current.on('style.load', () => {
+      if (!map.current) return;
+      applySoftGreenParksTheme(map.current);
+      setMapLabelsToChinese(map.current); // 地图文字改为中文
+    });
+    map.current.on('load', () => map.current?.resize());
+
+    // 容器高度在挂载/切换动画后才稳定，用 ResizeObserver 持续校正地图尺寸
+    const ro = new ResizeObserver(() => map.current?.resize());
+    ro.observe(mapContainer.current);
+
+    const markerEls: HTMLElement[] = [];
+    mapLocations.forEach((loc) => {
+      const el = createLocationMarkerEl(loc);
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // 蓝点（缩小）状态下点击不展开散开层，仅照片缩略图状态可展开
+        if ((map.current?.getZoom() ?? 99) < FAR_ZOOM) return;
+        // 以 marker 在地图上的投影点为散开动画起点
+        const m = map.current;
+        if (m) {
+          const p = m.project(loc.lngLat);
+          const c = m.getContainer();
+          setOrigin({ x: p.x - c.clientWidth / 2, y: p.y - c.clientHeight / 2 });
+        }
+        setActiveLoc(loc);
+        setViewMode('scatter');
+        setCurrentIndex(0);
+      });
+      new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(loc.lngLat)
+        .addTo(map.current!);
+      markerEls.push(el);
+    });
+
+    // 缩放时切换照片缩略图 / 蓝点，并设置初始状态
+    const onZoom = () => applyMarkerZoomStyle(markerEls, map.current?.getZoom() ?? 12);
+    map.current.on('zoom', onZoom);
+    onZoom();
+
+    // —— 地球自转（参考 Mapbox spinning globe：用 moveend 链式 easeTo 实现匀速自转） ——
+    const secondsPerRevolution = 120; // 一圈约 120 秒
+    const maxSpinZoom = 5;            // 放大超过此级别就不再自转
+    const slowSpinZoom = 3;           // 接近此级别时减速
+    const spinGlobe = () => {
+      const m = map.current;
+      if (!m || !spinningRef.current || userInteractingRef.current) return;
+      const zoom = m.getZoom();
+      if (zoom >= maxSpinZoom) return;
+      let degreesPerSecond = (360 / secondsPerRevolution) * spinSpeedRef.current;
+      if (zoom > slowSpinZoom) {
+        degreesPerSecond *= (maxSpinZoom - zoom) / (maxSpinZoom - slowSpinZoom);
+      }
+      const center = m.getCenter();
+      center.lng -= degreesPerSecond;
+      m.easeTo({ center, duration: 1000, easing: (n) => n });
+    };
+    spinGlobeRef.current = spinGlobe;
+
+    const onInteractStart = () => { userInteractingRef.current = true; };
+    const onInteractEnd = () => { userInteractingRef.current = false; spinGlobe(); };
+    map.current.on('mousedown', onInteractStart);
+    map.current.on('dragstart', onInteractStart);
+    map.current.on('mouseup', onInteractEnd);
+    map.current.on('touchend', onInteractEnd);
+    map.current.on('moveend', spinGlobe);
+
+    return () => {
+      ro.disconnect();
+      map.current?.off('zoom', onZoom);
+      map.current?.remove();
+      map.current = null;
+    };
+  }, []);
+
   return (
     <div className="relative w-full h-full bg-[#1C1C1E] overflow-hidden -mt-14 pt-14 text-white">
-      {/* Map Background */}
-      <div 
-        className="absolute inset-0 pointer-events-none object-cover"
-        style={{
-          backgroundImage: `url(${mapBgUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'grayscale(20%) sepia(10%) hue-rotate(180deg) brightness(85%) contrast(110%) opacity(80%)'
-        }}
-      />
-      
-      {/* Top Bar Overlay */}
-      <div className="absolute top-14 left-0 right-0 z-20 flex justify-between px-5 items-center">
-        <h1 className="text-[28px] font-bold tracking-tight drop-shadow-md text-white">英国</h1>
-        <button className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-          <Menu className="w-5 h-5 text-white" />
+      {/* Mapbox 漫游底图（用内联样式强制 absolute 填满，避免被 mapbox-gl.css 的 .mapboxgl-map{position:relative} 覆盖） */}
+      <div ref={mapContainer} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
+
+      {/* Top Bar Overlay（不显示地点名；自转按钮 + 菜单按钮） */}
+      <div className="absolute top-14 left-0 right-0 z-20 flex justify-end items-center gap-2 px-5 pointer-events-none">
+        <button
+          onClick={toggleSpin}
+          className={cn(
+            'w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center border shadow-sm pointer-events-auto transition-colors active:scale-95',
+            spinning ? 'bg-[#0A84FF] border-[#0A84FF]' : 'bg-white/80 border-black/5'
+          )}
+          title="地球自转"
+        >
+          <Globe className={cn('w-5 h-5', spinning ? 'text-white animate-spin' : 'text-[#1C1C1E]')} style={spinning ? { animationDuration: '6s' } : undefined} />
+        </button>
+        <button className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center border border-black/5 shadow-sm pointer-events-auto">
+          <Menu className="w-5 h-5 text-[#1C1C1E]" />
         </button>
       </div>
 
-      {/* STATE 1: Map Markers */}
-      <div className="relative w-full h-full">
-        {mapLocations.map((loc) => (
-          <button
-            key={loc.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 focus:outline-none z-10"
-            style={{ 
-              top: `${loc.coords.y}%`, 
-              left: `${loc.coords.x}%`,
-            }}
-            onClick={() => {
-              setActiveLoc(loc);
-              setViewMode('scatter');
-              setCurrentIndex(0);
-            }}
+      {/* 自转速度选择（仅自转时显示） */}
+      <AnimatePresence>
+        {spinning && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-[104px] left-1/2 -translate-x-1/2 z-20 pointer-events-auto flex items-center gap-1 bg-white/85 backdrop-blur-md rounded-full p-1 shadow-sm border border-black/5"
           >
-            <motion.div 
-              className="relative transition-transform duration-300 hover:scale-110 active:scale-95"
-              layoutId={activeLoc === null ? `marker-${loc.id}` : undefined}
-            >
-              <div className="w-[56px] h-[56px] rounded-full border-[3px] border-white shadow-[0_4px_12px_rgba(0,0,0,0.25)] overflow-hidden bg-gray-200">
-                <img src={loc.photos[0].url} alt={loc.name} className="w-full h-full object-cover" draggable={false} />
-              </div>
-              {loc.photos.length > 1 && (
-                <div className="absolute -top-1 -right-2 min-w-[22px] h-[22px] px-1.5 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-sm">
-                  <span className="text-[12px] font-bold text-white leading-none tracking-tighter">{loc.photos.length}</span>
-                </div>
-              )}
-            </motion.div>
-          </button>
-        ))}
-      </div>
+            {[
+              { v: 0.5, label: '0.5×' },
+              { v: 1, label: '1×' },
+              { v: 2, label: '2×' },
+              { v: 4, label: '4×' },
+            ].map((s) => (
+              <button
+                key={s.v}
+                onClick={() => setSpeed(s.v)}
+                className={cn(
+                  'px-3 py-1 rounded-full text-[12px] font-semibold transition-colors',
+                  spinSpeed === s.v ? 'bg-[#0A84FF] text-white' : 'text-[#1C1C1E] hover:bg-black/5'
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* STATE 2 & 3: Overlay (Scatter & Single Modes) */}
       <AnimatePresence>

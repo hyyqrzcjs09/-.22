@@ -12,3 +12,11 @@ dist/
 
 # logs
 *.log
+
+# env / secrets（不上传 mapbox token 等密钥；保留 .env.example）
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
