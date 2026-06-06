@@ -41,6 +41,16 @@ void main() {
     expect(find.text('8 / 8'), findsOneWidget);
     expect(find.text('50.7192, -1.8808'), findsOneWidget);
 
+    await tester.tap(find.text('漫游地图'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('地点链接 · 漫游地图'), findsOneWidget);
+    expect(find.text('相册'), findsNothing);
+    expect(find.text('相簿'), findsNothing);
+
+    await tester.tap(find.text('学校'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('相簿'));
     await tester.pumpAndSettle();
 

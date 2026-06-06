@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _PlaceModeBar(
               hasSelectedPlace: _hasSelectedPlace,
               mode: _mode,
-              onChanged: (mode) => setState(() => _mode = mode),
+              onChanged: _changePlaceMode,
             ),
           ),
         ],
@@ -82,6 +82,15 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedPlace = null;
       _mode = _PlaceMode.map;
     });
+  }
+
+  void _changePlaceMode(_PlaceMode mode) {
+    if (mode == _PlaceMode.map) {
+      _returnToMap();
+      return;
+    }
+
+    setState(() => _mode = mode);
   }
 }
 
