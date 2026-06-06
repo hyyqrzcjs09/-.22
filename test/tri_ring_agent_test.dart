@@ -8,21 +8,30 @@ void main() {
     final plan = await agent.compose(
       TriRingAgentRequest(
         socialEnabled: true,
-        selectedPhotos: [
-          for (var index = 0; index < 3; index++)
-            TriRingAgentPhoto(
-              albumName: '家庭',
-              createdAt: DateTime(2026, 6, 6 - index),
-              id: 'photo-$index',
-              title: '照片 ${index + 1}',
+        rings: [
+          for (final type in TriRingType.values)
+            TriRingPhotoSelection(
+              type: type,
+              photos: [
+                for (var index = 0; index < 3; index++)
+                  TriRingAgentPhoto(
+                    albumName: '家庭',
+                    createdAt: DateTime(2026, 6, 6 - index),
+                    id: '${type.name}-photo-$index',
+                    title: '${type.label}照片 ${index + 1}',
+                  ),
+              ],
             ),
         ],
       ),
     );
 
     expect(plan.readiness, TriRingReadiness.ready);
-    expect(plan.headline, '三色环智能体已生成');
+    expect(plan.headline, '画像与匹配已生成');
     expect(plan.rings, hasLength(3));
-    expect(plan.rings.first.photoTitle, '照片 1');
+    expect(plan.rings.first.selectedCount, 3);
+    expect(plan.imageAnalyses, isNotEmpty);
+    expect(plan.profile.persona, '稳定型社交记忆用户');
+    expect(plan.matches, isNotEmpty);
   });
 }

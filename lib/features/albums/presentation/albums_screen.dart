@@ -15,7 +15,9 @@ class AlbumsScreen extends StatefulWidget {
 
 class _AlbumsScreenState extends State<AlbumsScreen> {
   final _albums = <_CategoryAlbum>[];
-  final _triRingPhotoIds = <String>{};
+  final _triRingPhotoIds = {
+    for (final type in TriRingType.values) type: <String>{},
+  };
   _CategoryAlbum? _openedAlbum;
   bool _socialEnabled = false;
 
@@ -81,7 +83,9 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
               setState(() {
                 _socialEnabled = enabled;
                 if (!enabled) {
-                  _triRingPhotoIds.clear();
+                  for (final ids in _triRingPhotoIds.values) {
+                    ids.clear();
+                  }
                 }
               });
             },
@@ -133,21 +137,25 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
     });
   }
 
-  void _toggleTriRingPhoto(String photoId) {
+  void _toggleTriRingPhoto(TriRingType type, String photoId) {
     setState(() {
-      if (_triRingPhotoIds.contains(photoId)) {
-        _triRingPhotoIds.remove(photoId);
+      final ringPhotoIds = _triRingPhotoIds[type]!;
+
+      if (ringPhotoIds.contains(photoId)) {
+        ringPhotoIds.remove(photoId);
         return;
       }
 
-      if (_triRingPhotoIds.length >= 3) {
+      if (ringPhotoIds.length >= triRingMaxPhotosPerRing) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('三色环最多选择 3 张照片')),
+          SnackBar(
+            content: Text('${type.label}最多选择 $triRingMaxPhotosPerRing 张照片'),
+          ),
         );
         return;
       }
 
-      _triRingPhotoIds.add(photoId);
+      ringPhotoIds.add(photoId);
     });
   }
 
@@ -355,9 +363,9 @@ class _TriRingSocialPanel extends ConsumerWidget {
 
   final List<_CategoryAlbum> albums;
   final bool enabled;
-  final ValueChanged<String> onPhotoToggled;
+  final void Function(TriRingType type, String photoId) onPhotoToggled;
   final ValueChanged<bool> onToggle;
-  final Set<String> selectedPhotoIds;
+  final Map<TriRingType, Set<String>> selectedPhotoIds;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -371,19 +379,28 @@ class _TriRingSocialPanel extends ConsumerWidget {
             photo: photo,
           ),
     ];
-    final selectedEntries = photoEntries
-        .where((entry) => selectedPhotoIds.contains(entry.id))
-        .take(3)
-        .toList();
+    final selectedEntriesByRing = {
+      for (final type in TriRingType.values)
+        type: photoEntries
+            .where((entry) => selectedPhotoIds[type]!.contains(entry.id))
+            .take(triRingMaxPhotosPerRing)
+            .toList(),
+    };
     final agentRequest = TriRingAgentRequest(
       socialEnabled: enabled,
-      selectedPhotos: [
-        for (final entry in selectedEntries)
-          TriRingAgentPhoto(
-            albumName: entry.albumName,
-            createdAt: entry.photo.createdAt,
-            id: entry.id,
-            title: entry.photo.title,
+      rings: [
+        for (final type in TriRingType.values)
+          TriRingPhotoSelection(
+            type: type,
+            photos: [
+              for (final entry in selectedEntriesByRing[type]!)
+                TriRingAgentPhoto(
+                  albumName: entry.albumName,
+                  createdAt: entry.photo.createdAt,
+                  id: entry.id,
+                  title: entry.photo.title,
+                ),
+            ],
           ),
       ],
     );
@@ -416,7 +433,7 @@ class _TriRingSocialPanel extends ConsumerWidget {
                                 ),
                       ),
                       Text(
-                        enabled ? '选择照片形成三色环' : '关闭时保留原有比邻环功能',
+                        enabled ? '每个环选择 3-10 张照片' : '关闭时保留原有比邻环功能',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
@@ -429,18 +446,10 @@ class _TriRingSocialPanel extends ConsumerWidget {
             ),
             if (enabled) ...[
               const SizedBox(height: 14),
-              _TriRingPreview(entries: selectedEntries),
+              _TriRingPreview(entriesByRing: selectedEntriesByRing),
               const SizedBox(height: 12),
               _TriRingAgentInsight(plan: agentPlan),
               const SizedBox(height: 12),
-              Text(
-                '已选择 ${selectedPhotoIds.length}/3 张照片',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: colors.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 10),
               if (photoEntries.isEmpty)
                 Text(
                   '建立相册后即可从照片中选择三色环内容。',
@@ -449,18 +458,19 @@ class _TriRingSocialPanel extends ConsumerWidget {
                       ),
                 )
               else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final entry in photoEntries)
-                      FilterChip(
-                        avatar: const Icon(Icons.photo_outlined, size: 18),
-                        label:
-                            Text('${entry.albumName} · ${entry.photo.title}'),
-                        selected: selectedPhotoIds.contains(entry.id),
-                        onSelected: (_) => onPhotoToggled(entry.id),
+                    for (final type in TriRingType.values) ...[
+                      _TriRingPhotoPicker(
+                        entries: photoEntries,
+                        selectedIds: selectedPhotoIds[type]!,
+                        type: type,
+                        onPhotoToggled: onPhotoToggled,
                       ),
+                      if (type != TriRingType.values.last)
+                        const SizedBox(height: 14),
+                    ],
                   ],
                 ),
             ],
@@ -533,15 +543,65 @@ class _TriRingAgentInsight extends StatelessWidget {
                       ),
                       Expanded(
                         child: Text(
-                          ring.photoTitle == null
-                              ? ring.insight
-                              : '${ring.colorName} · ${ring.photoTitle}：${ring.insight}',
+                          '${ring.colorName} · ${ring.selectedCount}/$triRingMaxPhotosPerRing：${ring.insight}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
                     ],
                   ),
                 ),
+              if (data.imageAnalyses.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '图片分析',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                for (final analysis in data.imageAnalyses.take(3))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${analysis.ringName} · ${analysis.photoTitle}：${analysis.emotionTag}，${analysis.visualSignal}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                '用户画像：${data.profile.persona}',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                data.profile.traits.isEmpty
+                    ? data.profile.matchingVector
+                    : '${data.profile.matchingVector} · ${data.profile.traits.join(' / ')}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+              if (data.matches.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '匹配系统',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                for (final match in data.matches)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${match.title} ${match.score}%：${match.reason}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
             ],
           ),
           error: (_, __) => Text(
@@ -569,10 +629,77 @@ class _TriRingAgentInsight extends StatelessWidget {
   }
 }
 
-class _TriRingPreview extends StatelessWidget {
-  const _TriRingPreview({required this.entries});
+class _TriRingPhotoPicker extends StatelessWidget {
+  const _TriRingPhotoPicker({
+    required this.entries,
+    required this.onPhotoToggled,
+    required this.selectedIds,
+    required this.type,
+  });
 
   final List<_TriRingPhotoEntry> entries;
+  final void Function(TriRingType type, String photoId) onPhotoToggled;
+  final Set<String> selectedIds;
+  final TriRingType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final enough = selectedIds.length >= triRingMinPhotosPerRing;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                type.label,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
+            Text(
+              '${selectedIds.length}/$triRingMaxPhotosPerRing',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: enough ? colors.primary : colors.onSurfaceVariant,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          enough ? '已达到基础分析要求，可继续补充照片。' : '至少选择 $triRingMinPhotosPerRing 张照片。',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in entries)
+              FilterChip(
+                avatar: const Icon(Icons.photo_outlined, size: 18),
+                label: Text('${entry.albumName} · ${entry.photo.title}'),
+                selected: selectedIds.contains(entry.id),
+                onSelected: (_) => onPhotoToggled(type, entry.id),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TriRingPreview extends StatelessWidget {
+  const _TriRingPreview({required this.entriesByRing});
+
+  final Map<TriRingType, List<_TriRingPhotoEntry>> entriesByRing;
 
   @override
   Widget build(BuildContext context) {
@@ -595,14 +722,14 @@ class _TriRingPreview extends StatelessWidget {
               child: _TriRingCircle(
                 borderColor: ringColors[index],
                 label:
-                    index < entries.length ? entries[index].photo.title : '待选择',
+                    '${TriRingType.values[index].label}\n${entriesByRing[TriRingType.values[index]]!.length}/$triRingMaxPhotosPerRing',
               ),
             ),
-          if (entries.isEmpty)
+          if (entriesByRing.values.every((entries) => entries.isEmpty))
             Positioned(
               bottom: 0,
               child: Text(
-                '开启后选择照片生成 social 三色环',
+                '开启后为每个环选择照片生成画像与匹配建议',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),

@@ -80,17 +80,23 @@ void main() {
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
-    expect(find.text('选择照片形成三色环'), findsOneWidget);
+    expect(find.text('每个环选择 3-10 张照片'), findsOneWidget);
     expect(find.text('等待照片输入'), findsOneWidget);
-    expect(find.text('已选择 0/3 张照片'), findsOneWidget);
+    expect(find.text('自我环'), findsWidgets);
+    expect(find.text('关系环'), findsWidgets);
+    expect(find.text('场景环'), findsWidgets);
 
-    await tester.ensureVisible(find.text('家庭 · 家庭 照片 1'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('家庭 · 家庭 照片 1'));
-    await tester.pumpAndSettle();
+    for (final title in ['家庭 照片 1', '家庭 照片 2', '家庭 照片 3']) {
+      final chip = find.text('家庭 · $title').first;
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+    }
 
-    expect(find.text('已选择 1/3 张照片'), findsOneWidget);
-    expect(find.text('三色环智能体草稿'), findsOneWidget);
-    expect(find.text('家庭 照片 1'), findsWidgets);
+    expect(find.text('3/10'), findsOneWidget);
+    expect(find.text('三色环分析草稿'), findsOneWidget);
+    expect(find.textContaining('图片分析'), findsWidgets);
+    expect(find.textContaining('用户画像'), findsOneWidget);
   });
 }
