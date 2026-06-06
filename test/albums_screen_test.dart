@@ -22,6 +22,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('家庭'), findsOneWidget);
-    expect(find.text('0 张照片'), findsOneWidget);
+    expect(find.text('4 张照片'), findsOneWidget);
+
+    await tester.tap(find.text('家庭'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2026年6月6日'), findsOneWidget);
+    expect(find.text('2026年6月5日'), findsOneWidget);
+    expect(find.text('2026年5月28日'), findsOneWidget);
+    expect(find.text('家庭 照片 1'), findsOneWidget);
+    expect(find.byTooltip('NFC 分享'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('NFC 分享'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('仅用 NFC 分享该相册内容'), findsOneWidget);
+    expect(find.text('变成多人相册'), findsOneWidget);
+
+    await tester.tap(find.text('变成多人相册'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('多人相册'), findsOneWidget);
   });
 }

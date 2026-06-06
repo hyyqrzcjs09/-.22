@@ -11,13 +11,32 @@ class AlbumsScreen extends StatefulWidget {
 
 class _AlbumsScreenState extends State<AlbumsScreen> {
   final _albums = <_CategoryAlbum>[];
+  _CategoryAlbum? _openedAlbum;
 
   @override
   Widget build(BuildContext context) {
+    final openedAlbum = _openedAlbum;
+
+    if (openedAlbum != null) {
+      return AppScaffold(
+        selectedIndex: 3,
+        title: '分类',
+        child: _AlbumDetailView(
+          album: openedAlbum,
+          onBack: () {
+            setState(() {
+              _openedAlbum = null;
+            });
+          },
+          onNfcAction: _handleNfcAction,
+        ),
+      );
+    }
+
     final colors = Theme.of(context).colorScheme;
 
     return AppScaffold(
-      selectedIndex: 4,
+      selectedIndex: 3,
       title: '分类',
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -61,7 +80,15 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                 crossAxisSpacing: 12,
               ),
               itemBuilder: (context, index) {
-                return _CategoryAlbumCard(album: _albums[index]);
+                final album = _albums[index];
+                return _CategoryAlbumCard(
+                  album: album,
+                  onTap: () {
+                    setState(() {
+                      _openedAlbum = album;
+                    });
+                  },
+                );
               },
             ),
         ],
@@ -82,6 +109,25 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
     setState(() {
       _albums.add(album);
     });
+  }
+
+  Future<void> _handleNfcAction(
+    _CategoryAlbum album,
+    _AlbumNfcAction action,
+  ) async {
+    if (action == _AlbumNfcAction.shareOnly) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已准备通过 NFC 分享「${album.name}」相册内容')),
+      );
+      return;
+    }
+
+    setState(() {
+      album.isCollaborative = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('「${album.name}」已设为多人相册')),
+    );
   }
 }
 
@@ -176,6 +222,11 @@ class _CreateAlbumDialogState extends State<_CreateAlbumDialog> {
     Navigator.of(context).pop(
       _CategoryAlbum(
         icon: _selectedPreset.icon,
+        photos: _seedPhotosForAlbum(
+          _selectedPreset == _CategoryAlbumPreset.other
+              ? customName
+              : _selectedPreset.label,
+        ),
         name: _selectedPreset == _CategoryAlbumPreset.other
             ? customName
             : _selectedPreset.label,
@@ -225,9 +276,200 @@ class _EmptyCategoryPanel extends StatelessWidget {
 }
 
 class _CategoryAlbumCard extends StatelessWidget {
-  const _CategoryAlbumCard({required this.album});
+  const _CategoryAlbumCard({
+    required this.album,
+    required this.onTap,
+  });
 
   final _CategoryAlbum album;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colors.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(album.icon, size: 34, color: colors.primary),
+                    const Spacer(),
+                    if (album.isCollaborative)
+                      Icon(
+                        Icons.group_outlined,
+                        size: 20,
+                        color: colors.secondary,
+                      ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  album.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${album.photos.length} 张照片',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumDetailView extends StatelessWidget {
+  const _AlbumDetailView({
+    required this.album,
+    required this.onBack,
+    required this.onNfcAction,
+  });
+
+  final _CategoryAlbum album;
+  final VoidCallback onBack;
+  final void Function(_CategoryAlbum album, _AlbumNfcAction action) onNfcAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final groupedPhotos = _groupPhotosByDate(album.photos);
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            IconButton(
+              tooltip: '返回分类',
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Icon(album.icon, color: colors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    album.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  Text(
+                    album.isCollaborative
+                        ? '多人相册'
+                        : '${album.photos.length} 张照片',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton.filledTonal(
+              tooltip: 'NFC 分享',
+              onPressed: () => _showAlbumNfcSheet(context),
+              icon: const Icon(Icons.nfc_outlined),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        for (final group in groupedPhotos.entries) ...[
+          Text(
+            group.key,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 10),
+          GridView.builder(
+            itemCount: group.value.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 180,
+              mainAxisExtent: 126,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              return _AlbumPhotoTile(photo: group.value[index]);
+            },
+          ),
+          const SizedBox(height: 18),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _showAlbumNfcSheet(BuildContext context) async {
+    final action = await showModalBottomSheet<_AlbumNfcAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: const Text('仅用 NFC 分享该相册内容'),
+                subtitle: const Text('被分享者只能打开和查看该相册。'),
+                onTap: () {
+                  Navigator.of(context).pop(_AlbumNfcAction.shareOnly);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.group_add_outlined),
+                title: const Text('变成多人相册'),
+                subtitle: const Text('被分享者加入后可以共同维护这个相册。'),
+                onTap: () {
+                  Navigator.of(context).pop(_AlbumNfcAction.collaborative);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (action != null) {
+      onNfcAction(album, action);
+    }
+  }
+}
+
+class _AlbumPhotoTile extends StatelessWidget {
+  const _AlbumPhotoTile({required this.photo});
+
+  final _AlbumPhoto photo;
 
   @override
   Widget build(BuildContext context) {
@@ -240,25 +482,31 @@ class _CategoryAlbumCard extends StatelessWidget {
         border: Border.all(color: colors.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(album.icon, size: 34, color: colors.primary),
-            const Spacer(),
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.image_outlined,
+                    color: colors.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
-              album.name,
+              photo.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '0 张照片',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
                   ),
             ),
           ],
@@ -269,13 +517,31 @@ class _CategoryAlbumCard extends StatelessWidget {
 }
 
 class _CategoryAlbum {
-  const _CategoryAlbum({
+  _CategoryAlbum({
     required this.icon,
     required this.name,
+    required this.photos,
   });
 
   final IconData icon;
+  bool isCollaborative = false;
   final String name;
+  final List<_AlbumPhoto> photos;
+}
+
+class _AlbumPhoto {
+  const _AlbumPhoto({
+    required this.createdAt,
+    required this.title,
+  });
+
+  final DateTime createdAt;
+  final String title;
+}
+
+enum _AlbumNfcAction {
+  shareOnly,
+  collaborative,
 }
 
 enum _CategoryAlbumPreset {
@@ -288,4 +554,42 @@ enum _CategoryAlbumPreset {
 
   final IconData icon;
   final String label;
+}
+
+List<_AlbumPhoto> _seedPhotosForAlbum(String albumName) {
+  return [
+    _AlbumPhoto(
+      createdAt: DateTime(2026, 6, 6),
+      title: '$albumName 照片 1',
+    ),
+    _AlbumPhoto(
+      createdAt: DateTime(2026, 6, 6),
+      title: '$albumName 照片 2',
+    ),
+    _AlbumPhoto(
+      createdAt: DateTime(2026, 6, 5),
+      title: '$albumName 照片 3',
+    ),
+    _AlbumPhoto(
+      createdAt: DateTime(2026, 5, 28),
+      title: '$albumName 照片 4',
+    ),
+  ];
+}
+
+Map<String, List<_AlbumPhoto>> _groupPhotosByDate(List<_AlbumPhoto> photos) {
+  final sorted = [...photos]
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  final groups = <String, List<_AlbumPhoto>>{};
+
+  for (final photo in sorted) {
+    final key = _formatDate(photo.createdAt);
+    groups.putIfAbsent(key, () => []).add(photo);
+  }
+
+  return groups;
+}
+
+String _formatDate(DateTime date) {
+  return '${date.year}年${date.month}月${date.day}日';
 }

@@ -33,8 +33,6 @@ class AppScaffold extends StatelessWidget {
             case 2:
               context.go(AppRoutes.memories);
             case 3:
-              context.go(AppRoutes.nfc);
-            case 4:
               context.go(AppRoutes.categories);
           }
         },
@@ -53,11 +51,6 @@ class AppScaffold extends StatelessWidget {
             icon: Icon(Icons.auto_awesome_motion_outlined),
             selectedIcon: Icon(Icons.auto_awesome_motion),
             label: '回忆',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.nfc_outlined),
-            selectedIcon: Icon(Icons.nfc),
-            label: 'NFC',
           ),
           NavigationDestination(
             icon: Icon(Icons.category_outlined),

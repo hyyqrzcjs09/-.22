@@ -11,7 +11,7 @@ void main() {
     expect(find.text('地点链接'), findsOneWidget);
     expect(find.text('日期'), findsOneWidget);
     expect(find.text('回忆'), findsOneWidget);
-    expect(find.text('NFC'), findsOneWidget);
+    expect(find.text('NFC'), findsNothing);
     expect(find.text('分类'), findsOneWidget);
   });
 }
