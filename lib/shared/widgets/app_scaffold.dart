@@ -32,6 +32,8 @@ class AppScaffold extends StatelessWidget {
               context.go(AppRoutes.dates);
             case 2:
               context.go(AppRoutes.categories);
+            case 3:
+              context.go(AppRoutes.profile);
           }
         },
         destinations: const [
@@ -49,6 +51,11 @@ class AppScaffold extends StatelessWidget {
             icon: Icon(Icons.category_outlined),
             selectedIcon: Icon(Icons.category),
             label: '分类',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '我的',
           ),
         ],
       ),

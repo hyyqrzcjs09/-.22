@@ -17,5 +17,12 @@ void main() {
     expect(find.text('回忆'), findsNothing);
     expect(find.text('NFC'), findsNothing);
     expect(find.text('分类'), findsOneWidget);
+    expect(find.text('我的'), findsOneWidget);
+
+    await tester.tap(find.text('我的'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('我的照片记忆'), findsOneWidget);
+    expect(find.text('本地照片权限'), findsOneWidget);
   });
 }
