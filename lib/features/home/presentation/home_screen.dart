@@ -10,7 +10,8 @@ class HomeScreen extends StatelessWidget {
     return AppScaffold(
       selectedIndex: 0,
       title: '照片地图',
-      child: const PhotoMapView(),
+      showAppBar: false,
+      child: const PhotoMapView(showStatusPanel: false),
     );
   }
 }

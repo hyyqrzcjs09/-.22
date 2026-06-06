@@ -7,6 +7,6 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: PhotoLinkVrApp()));
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('照片地图'), findsOneWidget);
+    expect(find.textContaining('MAPBOX_ACCESS_TOKEN'), findsOneWidget);
   });
 }

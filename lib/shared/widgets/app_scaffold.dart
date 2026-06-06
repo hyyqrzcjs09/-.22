@@ -8,17 +8,19 @@ class AppScaffold extends StatelessWidget {
     required this.child,
     required this.selectedIndex,
     required this.title,
+    this.showAppBar = true,
     super.key,
   });
 
   final Widget child;
   final int selectedIndex;
+  final bool showAppBar;
   final String title;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: showAppBar ? AppBar(title: Text(title)) : null,
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,

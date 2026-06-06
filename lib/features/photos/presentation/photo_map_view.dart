@@ -6,11 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as geo;
 import 'package:photo_manager/photo_manager.dart';
 
+import '../../../core/config/app_config.dart';
 import '../application/photo_map_providers.dart';
 import '../data/local_photo_repository.dart';
 
 class PhotoMapView extends ConsumerWidget {
-  const PhotoMapView({super.key});
+  const PhotoMapView({
+    this.showStatusPanel = true,
+    super.key,
+  });
+
+  final bool showStatusPanel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,10 +39,12 @@ class PhotoMapView extends ConsumerWidget {
       data: (result) => _PhotoMapBody(
         center: _mapCenter(result.photos),
         photos: result.photos,
-        overlay: _MapStatusPanel(
-          result: result,
-          onRefresh: () => ref.invalidate(photoMapProvider),
-        ),
+        overlay: showStatusPanel
+            ? _MapStatusPanel(
+                result: result,
+                onRefresh: () => ref.invalidate(photoMapProvider),
+              )
+            : null,
         emptyOverlay: _buildEmptyOverlay(context, ref, result),
       ),
     );
@@ -110,11 +118,15 @@ class _PhotoMapBody extends StatelessWidget {
             minZoom: 2,
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              subdomains: const [],
-              userAgentPackageName: 'photo_link_vr',
-            ),
+            if (AppConfig.hasMapboxAccessToken)
+              TileLayer(
+                urlTemplate: AppConfig.mapboxTileUrl,
+                subdomains: const [],
+                tileDimension: 512,
+                zoomOffset: -1,
+                maxNativeZoom: 22,
+                userAgentPackageName: 'photo_link_vr',
+              ),
             MarkerLayer(
               markers: [
                 for (final photo in photos)
@@ -127,11 +139,22 @@ class _PhotoMapBody extends StatelessWidget {
                   ),
               ],
             ),
+            const SimpleAttributionWidget(
+              source: Text('© Mapbox © OpenStreetMap'),
+              backgroundColor: Color(0xCCFFFFFF),
+            ),
           ],
         ),
+        if (!AppConfig.hasMapboxAccessToken)
+          const Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: _MapboxTokenPanel(),
+          ),
         if (overlay != null)
           Positioned(
-            top: 12,
+            top: AppConfig.hasMapboxAccessToken ? 12 : 88,
             left: 12,
             right: 12,
             child: overlay!,
@@ -144,6 +167,47 @@ class _PhotoMapBody extends StatelessWidget {
             child: emptyOverlay!,
           ),
       ],
+    );
+  }
+}
+
+class _MapboxTokenPanel extends StatelessWidget {
+  const _MapboxTokenPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 12,
+            color: Color(0x1F000000),
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.key_outlined, color: colors.onPrimaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '配置 MAPBOX_ACCESS_TOKEN 后显示完整 Mapbox 地图',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colors.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
