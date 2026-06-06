@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../vr/application/memory_video_store.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 
 class AlbumsScreen extends StatefulWidget {
@@ -83,6 +84,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                 final album = _albums[index];
                 return _CategoryAlbumCard(
                   album: album,
+                  onCreateMemoryVideo: () => _createMemoryVideo(album),
                   onTap: () {
                     setState(() {
                       _openedAlbum = album;
@@ -109,6 +111,23 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
     setState(() {
       _albums.add(album);
     });
+  }
+
+  void _createMemoryVideo(_CategoryAlbum album) {
+    MemoryVideoStore.instance.addFromAlbum(
+      albumName: album.name,
+      clips: [
+        for (final photo in album.photos)
+          MemoryClip(
+            date: photo.createdAt,
+            title: photo.title,
+          ),
+      ],
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已将「${album.name}」剪辑成回忆视频')),
+    );
   }
 
   Future<void> _handleNfcAction(
@@ -278,10 +297,12 @@ class _EmptyCategoryPanel extends StatelessWidget {
 class _CategoryAlbumCard extends StatelessWidget {
   const _CategoryAlbumCard({
     required this.album,
+    required this.onCreateMemoryVideo,
     required this.onTap,
   });
 
   final _CategoryAlbum album;
+  final VoidCallback onCreateMemoryVideo;
   final VoidCallback onTap;
 
   @override
@@ -314,6 +335,12 @@ class _CategoryAlbumCard extends StatelessWidget {
                         size: 20,
                         color: colors.secondary,
                       ),
+                    IconButton(
+                      tooltip: '剪辑回忆视频',
+                      onPressed: onCreateMemoryVideo,
+                      icon: const Icon(Icons.view_in_ar_outlined, size: 20),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ],
                 ),
                 const Spacer(),

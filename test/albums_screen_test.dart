@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photo_link_vr/features/albums/presentation/albums_screen.dart';
+import 'package:photo_link_vr/features/vr/application/memory_video_store.dart';
 
 void main() {
   testWidgets('creates a category album from the add button', (tester) async {
+    MemoryVideoStore.instance.clearForTesting();
+
     await tester.pumpWidget(
       const MaterialApp(
         home: AlbumsScreen(),
@@ -23,6 +26,12 @@ void main() {
 
     expect(find.text('家庭'), findsOneWidget);
     expect(find.text('4 张照片'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('剪辑回忆视频'));
+    await tester.pump();
+
+    expect(MemoryVideoStore.instance.videos, hasLength(1));
+    expect(MemoryVideoStore.instance.videos.first.albumName, '家庭');
 
     await tester.tap(find.text('家庭'));
     await tester.pumpAndSettle();
