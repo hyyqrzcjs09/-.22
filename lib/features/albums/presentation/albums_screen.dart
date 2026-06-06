@@ -46,37 +46,15 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       );
     }
 
-    final colors = Theme.of(context).colorScheme;
-
     return AppScaffold(
       selectedIndex: 1,
       title: '比邻环',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            '比邻环相册',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${_albums.length} 个相册',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                ),
-              ),
-              IconButton.filledTonal(
-                tooltip: '建立文件夹',
-                onPressed: _showCreateAlbumDialog,
-                icon: const Icon(Icons.add),
-              ),
-            ],
+          _AlbumsOverviewPanel(
+            albumCount: _albums.length,
+            onCreate: _showCreateAlbumDialog,
           ),
           const SizedBox(height: 16),
           _TriRingSocialPanel(
@@ -412,6 +390,87 @@ class _EmptyCategoryPanel extends StatelessWidget {
               onPressed: onCreate,
               icon: const Icon(Icons.add),
               label: const Text('建立文件夹'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumsOverviewPanel extends StatelessWidget {
+  const _AlbumsOverviewPanel({
+    required this.albumCount,
+    required this.onCreate,
+  });
+
+  final int albumCount;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.primaryContainer.withValues(alpha: 0.78),
+            colors.tertiaryContainer.withValues(alpha: 0.44),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 18,
+            color: Color(0x16000000),
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.surface.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Icon(Icons.category_outlined, color: colors.primary),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '比邻环相册',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '$albumCount 个相册',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton.filledTonal(
+              tooltip: '建立文件夹',
+              onPressed: onCreate,
+              icon: const Icon(Icons.add),
             ),
           ],
         ),

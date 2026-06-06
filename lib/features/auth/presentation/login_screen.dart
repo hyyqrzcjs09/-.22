@@ -49,18 +49,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.all(22),
                 children: [
-                  Text(
-                    '登录',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                  const _LoginBrandMark(),
+                  const SizedBox(height: 18),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.surface.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: colors.outlineVariant.withValues(alpha: 0.64),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '登录',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '输入手机号获取验证码，验证成功后即可登录。',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '输入手机号获取验证码，验证成功后即可登录。',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 12),
                   _LoginPanel(
                     child: Form(
                       key: _formKey,
@@ -170,6 +192,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
+class _LoginBrandMark extends StatelessWidget {
+  const _LoginBrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [colors.primary, colors.tertiary],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 18,
+                color: Color(0x26000000),
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: 56,
+            height: 56,
+            child: Icon(Icons.photo_library_outlined, color: colors.onPrimary),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PhotoLink VR',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              Text(
+                '照片记忆 · NFC · AR',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LoginPanel extends StatelessWidget {
   const _LoginPanel({required this.child});
 
@@ -181,16 +258,19 @@ class _LoginPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
         boxShadow: const [
           BoxShadow(
-            blurRadius: 18,
-            color: Color(0x1F000000),
-            offset: Offset(0, 8),
+            blurRadius: 24,
+            color: Color(0x1A000000),
+            offset: Offset(0, 12),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: child,
       ),
     );
