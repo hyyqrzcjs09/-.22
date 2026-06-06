@@ -64,13 +64,9 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: settings.albumBackgroundColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: colors.outlineVariant),
-                    ),
-                    child: const SizedBox(width: 32, height: 32),
+                  _NfcFriendExchangeButton(
+                    phoneNumber: settings.phoneNumber,
+                    userId: settings.userId,
                   ),
                 ],
               ),
@@ -107,6 +103,343 @@ class ProfileScreen extends ConsumerWidget {
             route: AppRoutes.profileVrMemories,
             title: 'VR 回忆设置',
             subtitle: '管理视频生成、过渡和播放偏好',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NfcFriendExchangeButton extends StatelessWidget {
+  const _NfcFriendExchangeButton({
+    required this.phoneNumber,
+    required this.userId,
+  });
+
+  final String? phoneNumber;
+  final String? userId;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: 'NFC 碰一碰交朋友',
+      child: Material(
+        color: colors.primaryContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _openExchangeSheet(context),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.nfc_outlined, color: colors.onPrimaryContainer),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openExchangeSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: _NfcFriendExchangeSheet(
+          phoneNumber: phoneNumber,
+          userId: userId,
+        ),
+      ),
+    );
+  }
+}
+
+class _NfcFriendExchangeSheet extends StatefulWidget {
+  const _NfcFriendExchangeSheet({
+    required this.phoneNumber,
+    required this.userId,
+  });
+
+  final String? phoneNumber;
+  final String? userId;
+
+  @override
+  State<_NfcFriendExchangeSheet> createState() =>
+      _NfcFriendExchangeSheetState();
+}
+
+class _NfcFriendExchangeSheetState extends State<_NfcFriendExchangeSheet> {
+  var _sharePhotoRing = true;
+  var _shareAppId = true;
+  var _sharePhone = false;
+  var _allowFriendRequest = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(
+                    Icons.nfc_outlined,
+                    color: colors.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NFC 碰一碰交朋友',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '与其他安装此 App 的用户互换自己的照片环。',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _ExchangePanel(
+            title: '联系方式',
+            child: Column(
+              children: [
+                _ExchangeToggle(
+                  icon: Icons.badge_outlined,
+                  title: '分享 App ID',
+                  subtitle: widget.userId ?? '登录后自动生成',
+                  value: _shareAppId,
+                  onChanged: (value) => setState(() => _shareAppId = value),
+                ),
+                _ExchangeToggle(
+                  icon: Icons.phone_iphone,
+                  title: '分享手机号',
+                  subtitle: widget.phoneNumber ?? '尚未绑定手机号',
+                  value: _sharePhone,
+                  onChanged: (value) => setState(() => _sharePhone = value),
+                ),
+                _ExchangeToggle(
+                  icon: Icons.person_add_alt_1_outlined,
+                  title: '允许对方发送好友申请',
+                  subtitle: '对方收到照片环后，可以选择是否继续联系。',
+                  value: _allowFriendRequest,
+                  onChanged: (value) {
+                    setState(() => _allowFriendRequest = value);
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _ExchangePanel(
+            title: '照片环交换内容',
+            child: Column(
+              children: [
+                _ExchangeToggle(
+                  icon: Icons.all_inclusive,
+                  title: '交换自己的照片环',
+                  subtitle: '包含三色环选择、画像摘要和匹配入口。',
+                  value: _sharePhotoRing,
+                  onChanged: (value) {
+                    setState(() => _sharePhotoRing = value);
+                  },
+                ),
+                _ExchangeInfoRow(
+                  icon: Icons.privacy_tip_outlined,
+                  title: '默认不交换原图',
+                  subtitle: '只交换照片环摘要和可见封面，原图访问需要再次确认。',
+                ),
+                _ExchangeInfoRow(
+                  icon: Icons.sync_alt,
+                  title: '双方确认后建立关系',
+                  subtitle: '碰一碰只发出邀请，是否成为好友由双方选择。',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                  label: const Text('取消'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _sharePhotoRing ? _startNfcExchange : null,
+                  icon: const Icon(Icons.nfc_outlined),
+                  label: const Text('开始碰一碰'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startNfcExchange() {
+    final sharedContacts = [
+      if (_shareAppId) 'App ID',
+      if (_sharePhone) '手机号',
+      if (_allowFriendRequest) '好友申请入口',
+    ].join('、');
+
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          sharedContacts.isEmpty
+              ? '已准备通过 NFC 仅交换照片环'
+              : '已准备通过 NFC 交换照片环，并分享$sharedContacts',
+        ),
+      ),
+    );
+  }
+}
+
+class _ExchangePanel extends StatelessWidget {
+  const _ExchangePanel({
+    required this.child,
+    required this.title,
+  });
+
+  final Widget child;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExchangeToggle extends StatelessWidget {
+  const _ExchangeToggle({
+    required this.icon,
+    required this.onChanged,
+    required this.subtitle,
+    required this.title,
+    required this.value,
+  });
+
+  final IconData icon;
+  final ValueChanged<bool> onChanged;
+  final String subtitle;
+  final String title;
+  final bool value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(icon, color: colors.primary),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _ExchangeInfoRow extends StatelessWidget {
+  const _ExchangeInfoRow({
+    required this.icon,
+    required this.subtitle,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String subtitle;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: colors.primary),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
