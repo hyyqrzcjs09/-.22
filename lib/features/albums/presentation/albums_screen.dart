@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../application/tri_ring_agent.dart';
+import '../application/albums_local_store.dart';
 import '../../ar/application/ar_replay_bridge.dart';
 import '../../vr/application/memory_video_store.dart';
 import '../../vr/presentation/immersive_replay_screen.dart';
@@ -23,8 +24,15 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   };
   final _triRingFriendIds = <String>{};
   final _triRingShareRecords = <_TriRingShareRecord>[];
+  final _triRingInboxMessages = <_TriRingInboxMessage>[];
   _CategoryAlbum? _openedAlbum;
   bool _socialEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreLocalState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,19 +68,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
             enabled: _socialEnabled,
             selectedPhotoIds: _triRingPhotoIds,
             friendIds: _triRingFriendIds,
+            inboxMessages: _triRingInboxMessages,
             shareRecords: _triRingShareRecords,
             onFriendToggled: _toggleTriRingFriend,
+            onInboxReply: _replyToInboxMessage,
             onPhotoToggled: _toggleTriRingPhoto,
             onShare: _addTriRingShare,
             onToggle: (enabled) {
               setState(() {
                 _socialEnabled = enabled;
-                if (!enabled) {
-                  for (final ids in _triRingPhotoIds.values) {
-                    ids.clear();
-                  }
-                }
               });
+              _persistLocalState();
             },
           ),
           const SizedBox(height: 16),
@@ -105,6 +111,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     setState(() {
       _albums.add(album);
     });
+    _persistLocalState();
   }
 
   void _toggleTriRingPhoto(TriRingType type, String photoId) {
@@ -127,6 +134,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
       ringPhotoIds.add(photoId);
     });
+    _persistLocalState();
   }
 
   void _toggleTriRingFriend(TriRingMatchSuggestion match) {
@@ -135,10 +143,12 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     setState(() {
       if (willAdd) {
         _triRingFriendIds.add(match.title);
+        _ensureIncomingShareForFriend(match.title);
       } else {
         _triRingFriendIds.remove(match.title);
       }
     });
+    _persistLocalState();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -150,9 +160,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
   void _addTriRingShare({
     required bool imageAttached,
+    required List<String> recipients,
+    required _TriRingShareSource sourceType,
     required String text,
   }) {
-    final recipients = _triRingFriendIds.toList()..sort();
     final now = DateTime.now();
 
     setState(() {
@@ -163,13 +174,119 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
           id: 'share_${now.microsecondsSinceEpoch}',
           imageAttached: imageAttached,
           recipients: recipients,
+          sourceType: sourceType,
           text: text.trim(),
         ),
       );
     });
+    _persistLocalState();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('已向好友分享图片和文字')),
+    );
+  }
+
+  void _replyToInboxMessage({
+    required bool imageAttached,
+    required String messageId,
+    required String text,
+  }) {
+    final value = text.trim();
+    if (value.isEmpty && !imageAttached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入回复文字或选择图片')),
+      );
+      return;
+    }
+
+    setState(() {
+      final message = _triRingInboxMessages.firstWhere(
+        (message) => message.id == messageId,
+      );
+      message.replies.add(
+        _TriRingMessageReply(
+          createdAt: DateTime.now(),
+          imageAttached: imageAttached,
+          text: value,
+        ),
+      );
+      message.read = true;
+    });
+    _persistLocalState();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已回复好友分享')),
+    );
+  }
+
+  void _restoreLocalState() {
+    final data = ref.read(albumsLocalStoreProvider).read();
+    if (data.isEmpty) {
+      return;
+    }
+
+    _albums
+      ..clear()
+      ..addAll(_albumsFromJson(data['albums']));
+    _triRingFriendIds
+      ..clear()
+      ..addAll(_stringListFromJson(data['friendIds']));
+    _triRingShareRecords
+      ..clear()
+      ..addAll(_shareRecordsFromJson(data['shareRecords']));
+    _triRingInboxMessages
+      ..clear()
+      ..addAll(_inboxMessagesFromJson(data['inboxMessages']));
+    _socialEnabled = data['socialEnabled'] as bool? ?? false;
+
+    final selected = data['selectedPhotoIds'];
+    for (final type in TriRingType.values) {
+      _triRingPhotoIds[type]!.clear();
+      if (selected is Map) {
+        _triRingPhotoIds[type]!.addAll(
+          _stringListFromJson(selected[type.apiName]),
+        );
+      }
+    }
+  }
+
+  void _persistLocalState() {
+    ref.read(albumsLocalStoreProvider).write({
+      'albums': [for (final album in _albums) _albumToJson(album)],
+      'friendIds': _triRingFriendIds.toList(),
+      'inboxMessages': [
+        for (final message in _triRingInboxMessages)
+          _inboxMessageToJson(message),
+      ],
+      'selectedPhotoIds': {
+        for (final type in TriRingType.values)
+          type.apiName: _triRingPhotoIds[type]!.toList(),
+      },
+      'shareRecords': [
+        for (final record in _triRingShareRecords) _shareRecordToJson(record),
+      ],
+      'socialEnabled': _socialEnabled,
+    });
+  }
+
+  void _ensureIncomingShareForFriend(String friendName) {
+    if (_triRingInboxMessages.any((message) => message.sender == friendName)) {
+      return;
+    }
+
+    final now = DateTime.now();
+    _triRingInboxMessages.insert(
+      0,
+      _TriRingInboxMessage(
+        createdAt: now,
+        id: 'inbox_${friendName.hashCode.abs()}_${now.microsecondsSinceEpoch}',
+        imageAttached: true,
+        read: false,
+        replies: [],
+        sender: friendName,
+        sourceType: _TriRingShareSource.journal,
+        text: '分享了一页最近的手账漫游，想听听你的感觉。',
+      ),
     );
   }
 
@@ -258,6 +375,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       album.isCollaborative = true;
       album.ownerCount = album.ownerCount < 2 ? 2 : album.ownerCount;
     });
+    _persistLocalState();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('「${album.name}」已设为多人相册')),
     );
@@ -276,6 +394,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         ),
       );
     });
+    _persistLocalState();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已向「${album.name}」添加照片')),
@@ -298,6 +417,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         ),
       );
     });
+    _persistLocalState();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已在「${album.name}」添加评论')),
@@ -836,8 +956,10 @@ class _TriRingSocialPanel extends ConsumerStatefulWidget {
     required this.albums,
     required this.enabled,
     required this.friendIds,
+    required this.inboxMessages,
     required this.shareRecords,
     required this.onFriendToggled,
+    required this.onInboxReply,
     required this.onPhotoToggled,
     required this.onShare,
     required this.onToggle,
@@ -847,11 +969,21 @@ class _TriRingSocialPanel extends ConsumerStatefulWidget {
   final List<_CategoryAlbum> albums;
   final bool enabled;
   final Set<String> friendIds;
+  final List<_TriRingInboxMessage> inboxMessages;
   final List<_TriRingShareRecord> shareRecords;
   final ValueChanged<TriRingMatchSuggestion> onFriendToggled;
+  final void Function({
+    required bool imageAttached,
+    required String messageId,
+    required String text,
+  }) onInboxReply;
   final void Function(TriRingType type, String photoId) onPhotoToggled;
-  final void Function({required bool imageAttached, required String text})
-      onShare;
+  final void Function({
+    required bool imageAttached,
+    required List<String> recipients,
+    required _TriRingShareSource sourceType,
+    required String text,
+  }) onShare;
   final ValueChanged<bool> onToggle;
   final Map<TriRingType, Set<String>> selectedPhotoIds;
 
@@ -861,15 +993,6 @@ class _TriRingSocialPanel extends ConsumerStatefulWidget {
 }
 
 class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
-  final _shareController = TextEditingController();
-  bool _shareImageAttached = false;
-
-  @override
-  void dispose() {
-    _shareController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -956,7 +1079,20 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
             ),
             if (widget.enabled) ...[
               const SizedBox(height: 14),
-              _TriRingPreview(entriesByRing: selectedEntriesByRing),
+              _TriRingPreview(
+                entriesByRing: selectedEntriesByRing,
+                onRingLongPress: (type) => _showRingEditor(
+                  context,
+                  entries: photoEntries,
+                  selectedIds: widget.selectedPhotoIds[type]!,
+                  type: type,
+                ),
+                onRingTap: (type) => _showRingPhotos(
+                  context,
+                  entries: selectedEntriesByRing[type]!,
+                  type: type,
+                ),
+              ),
               const SizedBox(height: 12),
               _TriRingAgentInsight(
                 friendIds: widget.friendIds,
@@ -965,15 +1101,10 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
               ),
               const SizedBox(height: 12),
               _TriRingFriendShareBox(
-                controller: _shareController,
                 friendIds: widget.friendIds,
-                imageAttached: _shareImageAttached,
-                onSend: _sendFriendShare,
-                onToggleImage: () {
-                  setState(() {
-                    _shareImageAttached = !_shareImageAttached;
-                  });
-                },
+                inboxMessages: widget.inboxMessages,
+                onInboxReply: widget.onInboxReply,
+                onShare: widget.onShare,
                 shareRecords: widget.shareRecords,
               ),
               const SizedBox(height: 12),
@@ -985,20 +1116,12 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
                       ),
                 )
               else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final type in TriRingType.values) ...[
-                      _TriRingPhotoPicker(
-                        entries: photoEntries,
-                        selectedIds: widget.selectedPhotoIds[type]!,
-                        type: type,
-                        onPhotoToggled: widget.onPhotoToggled,
+                Text(
+                  '点击任意环查看已选照片，长按任意环添加或删除照片。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
                       ),
-                      if (type != TriRingType.values.last)
-                        const SizedBox(height: 14),
-                    ],
-                  ],
                 ),
             ],
           ],
@@ -1007,46 +1130,156 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
     );
   }
 
-  void _sendFriendShare() {
-    final text = _shareController.text.trim();
-    if (widget.friendIds.isEmpty) {
+  void _showRingPhotos(
+    BuildContext context, {
+    required List<_TriRingPhotoEntry> entries,
+    required TriRingType type,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${type.label}照片',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              if (entries.isEmpty)
+                Text(
+                  '这个环还没有照片，长按圆环即可添加。',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                )
+              else
+                for (final entry in entries)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.image_outlined),
+                    title: Text(entry.photo.title),
+                    subtitle: Text(entry.albumName),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRingEditor(
+    BuildContext context, {
+    required List<_TriRingPhotoEntry> entries,
+    required Set<String> selectedIds,
+    required TriRingType type,
+  }) {
+    if (entries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先从同频匹配里添加好友后再分享')),
+        const SnackBar(content: Text('请先建立相册，再为三色环选择照片')),
       );
       return;
     }
 
-    if (text.isEmpty && !_shareImageAttached) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请选择图片或输入文字后再分享')),
-      );
-      return;
-    }
+    final draftSelectedIds = {...selectedIds};
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return SafeArea(
+            child: DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.72,
+              maxChildSize: 0.92,
+              minChildSize: 0.42,
+              builder: (context, controller) {
+                return ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  children: [
+                    Text(
+                      '编辑${type.label}',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '选择 3-10 张照片，已选 ${draftSelectedIds.length}/$triRingMaxPhotosPerRing。',
+                    ),
+                    const SizedBox(height: 10),
+                    for (final entry in entries)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        secondary: const Icon(Icons.image_outlined),
+                        title:
+                            Text('${entry.albumName} · ${entry.photo.title}'),
+                        subtitle: Text(_formatDate(entry.photo.createdAt)),
+                        value: draftSelectedIds.contains(entry.id),
+                        onChanged: (_) {
+                          final selected = draftSelectedIds.contains(entry.id);
+                          if (!selected &&
+                              draftSelectedIds.length >=
+                                  triRingMaxPhotosPerRing) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${type.label}最多选择 $triRingMaxPhotosPerRing 张照片',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
 
-    widget.onShare(imageAttached: _shareImageAttached, text: text);
-
-    _shareController.clear();
-    setState(() {
-      _shareImageAttached = false;
-    });
+                          widget.onPhotoToggled(type, entry.id);
+                          setSheetState(() {
+                            if (selected) {
+                              draftSelectedIds.remove(entry.id);
+                            } else {
+                              draftSelectedIds.add(entry.id);
+                            }
+                          });
+                        },
+                      ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
 class _TriRingFriendShareBox extends StatelessWidget {
   const _TriRingFriendShareBox({
-    required this.controller,
     required this.friendIds,
-    required this.imageAttached,
-    required this.onSend,
-    required this.onToggleImage,
+    required this.inboxMessages,
+    required this.onInboxReply,
+    required this.onShare,
     required this.shareRecords,
   });
 
-  final TextEditingController controller;
   final Set<String> friendIds;
-  final bool imageAttached;
-  final VoidCallback onSend;
-  final VoidCallback onToggleImage;
+  final List<_TriRingInboxMessage> inboxMessages;
+  final void Function({
+    required bool imageAttached,
+    required String messageId,
+    required String text,
+  }) onInboxReply;
+  final void Function({
+    required bool imageAttached,
+    required List<String> recipients,
+    required _TriRingShareSource sourceType,
+    required String text,
+  }) onShare;
   final List<_TriRingShareRecord> shareRecords;
 
   @override
@@ -1106,38 +1339,20 @@ class _TriRingFriendShareBox extends StatelessWidget {
                 ],
               ),
             const SizedBox(height: 10),
-            TextField(
-              controller: controller,
-              minLines: 1,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '写一段想和好友分享的文字',
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: friendIds.isEmpty
+                    ? null
+                    : () => _openShareComposer(context),
+                icon: const Icon(Icons.send_outlined),
+                label: const Text('选择好友并分享'),
               ),
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                FilterChip(
-                  avatar: Icon(
-                    imageAttached
-                        ? Icons.check_circle
-                        : Icons.add_photo_alternate_outlined,
-                    size: 18,
-                  ),
-                  label: Text(imageAttached ? '已选择图片' : '选择图片'),
-                  selected: imageAttached,
-                  onSelected: (_) => onToggleImage(),
-                ),
-                FilledButton.icon(
-                  onPressed: onSend,
-                  icon: const Icon(Icons.send_outlined),
-                  label: const Text('分享给好友'),
-                ),
-              ],
+            const SizedBox(height: 12),
+            _TriRingInboxPanel(
+              messages: inboxMessages,
+              onInboxReply: onInboxReply,
             ),
             if (shareRecords.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -1158,6 +1373,441 @@ class _TriRingFriendShareBox extends StatelessWidget {
       ),
     );
   }
+
+  void _openShareComposer(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => _TriRingShareComposerDialog(
+        friendIds: friendIds,
+        onShare: onShare,
+      ),
+    );
+  }
+}
+
+class _TriRingShareComposerDialog extends StatefulWidget {
+  const _TriRingShareComposerDialog({
+    required this.friendIds,
+    required this.onShare,
+  });
+
+  final Set<String> friendIds;
+  final void Function({
+    required bool imageAttached,
+    required List<String> recipients,
+    required _TriRingShareSource sourceType,
+    required String text,
+  }) onShare;
+
+  @override
+  State<_TriRingShareComposerDialog> createState() =>
+      _TriRingShareComposerDialogState();
+}
+
+class _TriRingShareComposerDialogState
+    extends State<_TriRingShareComposerDialog> {
+  final _textController = TextEditingController();
+  late final Set<String> _selectedRecipients = {...widget.friendIds};
+  var _imageAttached = false;
+  var _sourceType = _TriRingShareSource.photo;
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: const Text('分享给好友'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '选择收件人',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        if (_selectedRecipients.length ==
+                            widget.friendIds.length) {
+                          _selectedRecipients.clear();
+                        } else {
+                          _selectedRecipients
+                            ..clear()
+                            ..addAll(widget.friendIds);
+                        }
+                      });
+                    },
+                    child: Text(
+                      _selectedRecipients.length == widget.friendIds.length
+                          ? '取消全选'
+                          : '全部分享',
+                    ),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final friend in widget.friendIds)
+                    FilterChip(
+                      avatar: const Icon(Icons.person_outline, size: 16),
+                      label: Text(friend),
+                      selected: _selectedRecipients.contains(friend),
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedRecipients.add(friend);
+                          } else {
+                            _selectedRecipients.remove(friend);
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                '分享内容',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final type in _TriRingShareSource.values)
+                    ChoiceChip(
+                      avatar: Icon(type.icon, size: 17),
+                      label: Text(type.label),
+                      selected: _sourceType == type,
+                      onSelected: (_) {
+                        setState(() {
+                          _sourceType = type;
+                        });
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FilterChip(
+                avatar: Icon(
+                  _imageAttached
+                      ? Icons.check_circle
+                      : Icons.add_photo_alternate_outlined,
+                  size: 18,
+                ),
+                label: Text(_imageAttached ? '已编辑图片' : '编辑图片'),
+                selected: _imageAttached,
+                onSelected: (selected) {
+                  setState(() {
+                    _imageAttached = selected;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _textController,
+                minLines: 3,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  hintText: '编辑想分享的文字，也可以说明这次${_sourceType.label}。',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '当前会发送给 ${_selectedRecipients.length} 位好友。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton.icon(
+          onPressed: _selectedRecipients.isEmpty ? null : _send,
+          icon: const Icon(Icons.send_outlined),
+          label: const Text('发送'),
+        ),
+      ],
+    );
+  }
+
+  void _send() {
+    widget.onShare(
+      imageAttached: _imageAttached,
+      recipients: _selectedRecipients.toList()..sort(),
+      sourceType: _sourceType,
+      text: _textController.text,
+    );
+    Navigator.of(context).pop();
+  }
+}
+
+class _TriRingInboxPanel extends StatelessWidget {
+  const _TriRingInboxPanel({
+    required this.messages,
+    required this.onInboxReply,
+  });
+
+  final List<_TriRingInboxMessage> messages;
+  final void Function({
+    required bool imageAttached,
+    required String messageId,
+    required String text,
+  }) onInboxReply;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final unreadCount = messages.where((message) => !message.read).length;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.mark_email_unread_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '收信',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+                Text(
+                  unreadCount == 0
+                      ? '${messages.length} 条'
+                      : '$unreadCount 条未读',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (messages.isEmpty)
+              Text(
+                '好友分享会出现在这里。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              )
+            else
+              for (final message in messages.take(3))
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(message.sourceType.icon),
+                    title: Text(
+                      '${message.sender} 分享了${message.sourceType.label}',
+                    ),
+                    subtitle: Text(
+                      message.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: message.read
+                        ? null
+                        : const Icon(
+                            Icons.circle,
+                            color: Colors.black,
+                            size: 10,
+                          ),
+                    onTap: () => _openMessage(context, message),
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openMessage(BuildContext context, _TriRingInboxMessage message) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => _TriRingInboxDetailDialog(
+        message: message,
+        onReply: onInboxReply,
+      ),
+    );
+  }
+}
+
+class _TriRingInboxDetailDialog extends StatefulWidget {
+  const _TriRingInboxDetailDialog({
+    required this.message,
+    required this.onReply,
+  });
+
+  final _TriRingInboxMessage message;
+  final void Function({
+    required bool imageAttached,
+    required String messageId,
+    required String text,
+  }) onReply;
+
+  @override
+  State<_TriRingInboxDetailDialog> createState() =>
+      _TriRingInboxDetailDialogState();
+}
+
+class _TriRingInboxDetailDialogState extends State<_TriRingInboxDetailDialog> {
+  final _replyController = TextEditingController();
+  var _imageAttached = false;
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: Text('${widget.message.sender} 的分享'),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(widget.message.sourceType.icon),
+                title: Text(widget.message.sourceType.label),
+                subtitle: Text(_formatShareTime(widget.message.createdAt)),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.outlineVariant),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(widget.message.text),
+                ),
+              ),
+              if (widget.message.imageAttached) ...[
+                const SizedBox(height: 10),
+                const Chip(
+                  avatar: Icon(Icons.photo_outlined, size: 17),
+                  label: Text('包含图片'),
+                ),
+              ],
+              if (widget.message.replies.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  '回复记录',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                for (final reply in widget.message.replies)
+                  Chip(
+                    avatar: Icon(
+                      reply.imageAttached
+                          ? Icons.photo_outlined
+                          : Icons.chat_bubble_outline,
+                      size: 17,
+                    ),
+                    label: Text(reply.text.isEmpty ? '回复了图片' : reply.text),
+                  ),
+              ],
+              const SizedBox(height: 14),
+              TextField(
+                controller: _replyController,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '回复图片或文字',
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilterChip(
+                avatar: Icon(
+                  _imageAttached
+                      ? Icons.check_circle
+                      : Icons.add_photo_alternate_outlined,
+                  size: 18,
+                ),
+                label: Text(_imageAttached ? '已选择图片' : '选择回复图片'),
+                selected: _imageAttached,
+                onSelected: (selected) {
+                  setState(() {
+                    _imageAttached = selected;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('关闭'),
+        ),
+        FilledButton.icon(
+          onPressed: _reply,
+          icon: const Icon(Icons.reply_outlined),
+          label: const Text('回复'),
+        ),
+      ],
+    );
+  }
+
+  void _reply() {
+    widget.onReply(
+      imageAttached: _imageAttached,
+      messageId: widget.message.id,
+      text: _replyController.text,
+    );
+    Navigator.of(context).pop();
+  }
 }
 
 class _TriRingShareRecordTile extends StatelessWidget {
@@ -1169,6 +1819,7 @@ class _TriRingShareRecordTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final summary = [
+      record.sourceType.label,
       if (record.imageAttached) '图片',
       if (record.text.isNotEmpty) '文字',
     ].join(' + ');
@@ -1194,9 +1845,7 @@ class _TriRingShareRecordTile extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Icon(
-                    record.imageAttached
-                        ? Icons.photo_library_outlined
-                        : Icons.chat_bubble_outline,
+                    record.sourceType.icon,
                     color: Colors.white,
                     size: 18,
                   ),
@@ -1258,102 +1907,25 @@ class _TriRingAgentInsight extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: plan.when(
-          data: (data) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_awesome, size: 18, color: colors.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      data.headline,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                data.guidance,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 10),
-              for (final ring in data.rings)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 56,
-                        child: Text(
-                          ring.name,
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: colors.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '${ring.colorName} · ${ring.selectedCount}/$triRingMaxPhotosPerRing：${ring.insight}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (data.imageAnalyses.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '图片分析',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                for (final analysis in data.imageAnalyses.take(3))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '${analysis.ringName} · ${analysis.photoTitle}：${analysis.emotionTag}，${analysis.visualSignal}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                '用户画像：${data.profile.persona}',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                data.profile.traits.isEmpty
-                    ? data.profile.matchingVector
-                    : '${data.profile.matchingVector} · ${data.profile.traits.join(' / ')}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-              ),
-              if (data.matches.isNotEmpty) ...[
-                const SizedBox(height: 8),
+    return plan.when(
+      data: (data) {
+        final matches =
+            data.matches.where((match) => match.score >= 70).toList();
+        if (matches.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
                   '同频匹配推荐',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -1367,36 +1939,30 @@ class _TriRingAgentInsight extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 6),
-                for (final match
-                    in data.matches.where((match) => match.score >= 70))
+                for (final match in matches)
                   _TriRingMatchCard(
                     friendAdded: friendIds.contains(match.title),
                     match: match,
                     onFriendToggled: () => onFriendToggled(match),
                   ),
               ],
-            ],
+            ),
           ),
-          error: (_, __) => Text(
-            '智能体接口暂不可用，已保留本地三色环选择。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.error,
-                ),
+        );
+      },
+      error: (_, __) => const SizedBox.shrink(),
+      loading: () => Row(
+        children: [
+          const SizedBox.square(
+            dimension: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          loading: () => Row(
-            children: [
-              const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '智能体正在整理三色环...',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+          const SizedBox(width: 8),
+          Text(
+            '正在更新同频推荐...',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1486,6 +2052,7 @@ class _TriRingMatchCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _TriRingPhotoPicker extends StatelessWidget {
   const _TriRingPhotoPicker({
     required this.entries,
@@ -1554,9 +2121,15 @@ class _TriRingPhotoPicker extends StatelessWidget {
 }
 
 class _TriRingPreview extends StatelessWidget {
-  const _TriRingPreview({required this.entriesByRing});
+  const _TriRingPreview({
+    required this.entriesByRing,
+    required this.onRingLongPress,
+    required this.onRingTap,
+  });
 
   final Map<TriRingType, List<_TriRingPhotoEntry>> entriesByRing;
+  final ValueChanged<TriRingType> onRingLongPress;
+  final ValueChanged<TriRingType> onRingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1580,13 +2153,15 @@ class _TriRingPreview extends StatelessWidget {
                 borderColor: ringColors[index],
                 label:
                     '${TriRingType.values[index].label}\n${entriesByRing[TriRingType.values[index]]!.length}/$triRingMaxPhotosPerRing',
+                onLongPress: () => onRingLongPress(TriRingType.values[index]),
+                onTap: () => onRingTap(TriRingType.values[index]),
               ),
             ),
           if (entriesByRing.values.every((entries) => entries.isEmpty))
             Positioned(
               bottom: 0,
               child: Text(
-                '开启后为每个环选择照片生成画像与匹配建议',
+                '点击任意环查看照片，长按添加或删除照片',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
@@ -1602,42 +2177,45 @@ class _TriRingCircle extends StatelessWidget {
   const _TriRingCircle({
     required this.borderColor,
     required this.label,
+    required this.onLongPress,
+    required this.onTap,
   });
 
   final Color borderColor;
   final String label;
+  final VoidCallback onLongPress;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(color: borderColor, width: 7),
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 18,
-            color: Color(0x22000000),
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: SizedBox(
+    return GestureDetector(
+      onLongPress: onLongPress,
+      onTap: onTap,
+      child: Container(
         width: 92,
         height: 92,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: borderColor, width: 7),
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 18,
+              color: Color(0x22000000),
+              offset: Offset(0, 8),
             ),
-          ),
+          ],
+        ),
+        child: Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
         ),
       ),
     );
@@ -2846,6 +3424,7 @@ class _TriRingShareRecord {
     required this.id,
     required this.imageAttached,
     required this.recipients,
+    required this.sourceType,
     required this.text,
   });
 
@@ -2853,7 +3432,61 @@ class _TriRingShareRecord {
   final String id;
   final bool imageAttached;
   final List<String> recipients;
+  final _TriRingShareSource sourceType;
   final String text;
+}
+
+class _TriRingInboxMessage {
+  _TriRingInboxMessage({
+    required this.createdAt,
+    required this.id,
+    required this.imageAttached,
+    required this.read,
+    required this.replies,
+    required this.sender,
+    required this.sourceType,
+    required this.text,
+  });
+
+  final DateTime createdAt;
+  final String id;
+  final bool imageAttached;
+  bool read;
+  final List<_TriRingMessageReply> replies;
+  final String sender;
+  final _TriRingShareSource sourceType;
+  final String text;
+}
+
+class _TriRingMessageReply {
+  const _TriRingMessageReply({
+    required this.createdAt,
+    required this.imageAttached,
+    required this.text,
+  });
+
+  final DateTime createdAt;
+  final bool imageAttached;
+  final String text;
+}
+
+enum _TriRingShareSource {
+  photo('图片', Icons.photo_library_outlined),
+  journal('手账漫游', Icons.auto_stories_outlined),
+  timeRoam('时间漫游', Icons.timeline_outlined),
+  placeRoam('地点漫游', Icons.map_outlined);
+
+  const _TriRingShareSource(this.label, this.icon);
+
+  final IconData icon;
+  final String label;
+
+  static _TriRingShareSource fromName(String? name) {
+    return _TriRingShareSource.values.firstWhere(
+      (source) => source.name == name,
+      orElse: () => _TriRingShareSource.photo,
+    );
+  }
 }
 
 class _AlbumPhoto {
@@ -2927,6 +3560,239 @@ List<_AlbumComment> _seedCommentsForAlbum(String albumName) {
   ];
 }
 
+Map<String, Object?> _albumToJson(_CategoryAlbum album) {
+  return {
+    'comments': [for (final comment in album.comments) _commentToJson(comment)],
+    'icon': _iconToJson(album.icon),
+    'id': album.id,
+    'isCollaborative': album.isCollaborative,
+    'name': album.name,
+    'ownerCount': album.ownerCount,
+    'photos': [for (final photo in album.photos) _photoToJson(photo)],
+  };
+}
+
+List<_CategoryAlbum> _albumsFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _albumFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_CategoryAlbum _albumFromJson(Map<String, Object?> json) {
+  final album = _CategoryAlbum(
+    comments: _commentsFromJson(json['comments']),
+    id: json['id'] as String? ??
+        'album_${DateTime.now().microsecondsSinceEpoch}',
+    icon: _iconFromJson(json['icon']),
+    name: json['name'] as String? ?? '相册',
+    photos: _photosFromJson(json['photos']),
+  );
+  album.isCollaborative = json['isCollaborative'] as bool? ?? false;
+  album.ownerCount = json['ownerCount'] as int? ?? 1;
+  return album;
+}
+
+Map<String, Object?> _photoToJson(_AlbumPhoto photo) {
+  return {
+    'createdAt': photo.createdAt.toIso8601String(),
+    'id': photo.id,
+    'title': photo.title,
+  };
+}
+
+List<_AlbumPhoto> _photosFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _photoFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_AlbumPhoto _photoFromJson(Map<String, Object?> json) {
+  return _AlbumPhoto(
+    createdAt: _dateFromJson(json['createdAt']),
+    id: json['id'] as String? ??
+        'photo_${DateTime.now().microsecondsSinceEpoch}',
+    title: json['title'] as String? ?? '照片',
+  );
+}
+
+Map<String, Object?> _commentToJson(_AlbumComment comment) {
+  return {
+    'author': comment.author,
+    'color': comment.color.toARGB32(),
+    'createdAt': comment.createdAt.toIso8601String(),
+    'text': comment.text,
+  };
+}
+
+List<_AlbumComment> _commentsFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _commentFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_AlbumComment _commentFromJson(Map<String, Object?> json) {
+  return _AlbumComment(
+    author: json['author'] as String? ?? '我',
+    color: Color(json['color'] as int? ?? Colors.black.toARGB32()),
+    createdAt: _dateFromJson(json['createdAt']),
+    text: json['text'] as String? ?? '',
+  );
+}
+
+Map<String, Object?> _shareRecordToJson(_TriRingShareRecord record) {
+  return {
+    'createdAt': record.createdAt.toIso8601String(),
+    'id': record.id,
+    'imageAttached': record.imageAttached,
+    'recipients': record.recipients,
+    'sourceType': record.sourceType.name,
+    'text': record.text,
+  };
+}
+
+List<_TriRingShareRecord> _shareRecordsFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _shareRecordFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_TriRingShareRecord _shareRecordFromJson(Map<String, Object?> json) {
+  return _TriRingShareRecord(
+    createdAt: _dateFromJson(json['createdAt']),
+    id: json['id'] as String? ??
+        'share_${DateTime.now().microsecondsSinceEpoch}',
+    imageAttached: json['imageAttached'] as bool? ?? false,
+    recipients: _stringListFromJson(json['recipients']),
+    sourceType: _TriRingShareSource.fromName(json['sourceType'] as String?),
+    text: json['text'] as String? ?? '',
+  );
+}
+
+Map<String, Object?> _inboxMessageToJson(_TriRingInboxMessage message) {
+  return {
+    'createdAt': message.createdAt.toIso8601String(),
+    'id': message.id,
+    'imageAttached': message.imageAttached,
+    'read': message.read,
+    'replies': [for (final reply in message.replies) _replyToJson(reply)],
+    'sender': message.sender,
+    'sourceType': message.sourceType.name,
+    'text': message.text,
+  };
+}
+
+List<_TriRingInboxMessage> _inboxMessagesFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _inboxMessageFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_TriRingInboxMessage _inboxMessageFromJson(Map<String, Object?> json) {
+  return _TriRingInboxMessage(
+    createdAt: _dateFromJson(json['createdAt']),
+    id: json['id'] as String? ??
+        'inbox_${DateTime.now().microsecondsSinceEpoch}',
+    imageAttached: json['imageAttached'] as bool? ?? false,
+    read: json['read'] as bool? ?? false,
+    replies: _repliesFromJson(json['replies']),
+    sender: json['sender'] as String? ?? '好友',
+    sourceType: _TriRingShareSource.fromName(json['sourceType'] as String?),
+    text: json['text'] as String? ?? '',
+  );
+}
+
+Map<String, Object?> _replyToJson(_TriRingMessageReply reply) {
+  return {
+    'createdAt': reply.createdAt.toIso8601String(),
+    'imageAttached': reply.imageAttached,
+    'text': reply.text,
+  };
+}
+
+List<_TriRingMessageReply> _repliesFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _replyFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_TriRingMessageReply _replyFromJson(Map<String, Object?> json) {
+  return _TriRingMessageReply(
+    createdAt: _dateFromJson(json['createdAt']),
+    imageAttached: json['imageAttached'] as bool? ?? false,
+    text: json['text'] as String? ?? '',
+  );
+}
+
+Map<String, Object?> _iconToJson(IconData icon) {
+  return {
+    'codePoint': icon.codePoint,
+    'fontFamily': icon.fontFamily,
+    'fontPackage': icon.fontPackage,
+    'matchTextDirection': icon.matchTextDirection,
+  };
+}
+
+IconData _iconFromJson(Object? value) {
+  if (value is Map) {
+    final json = value.cast<String, Object?>();
+    final codePoint = json['codePoint'] as int?;
+    if (codePoint == Icons.family_restroom_outlined.codePoint) {
+      return Icons.family_restroom_outlined;
+    }
+    if (codePoint == Icons.groups_outlined.codePoint) {
+      return Icons.groups_outlined;
+    }
+    if (codePoint == Icons.favorite_border.codePoint) {
+      return Icons.favorite_border;
+    }
+    if (codePoint == Icons.edit_note_outlined.codePoint) {
+      return Icons.edit_note_outlined;
+    }
+  }
+  return Icons.folder_outlined;
+}
+
+List<String> _stringListFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is String) item,
+  ];
+}
+
 Map<String, List<_AlbumPhoto>> _groupPhotosByDate(List<_AlbumPhoto> photos) {
   final sorted = [...photos]
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -2942,6 +3808,13 @@ Map<String, List<_AlbumPhoto>> _groupPhotosByDate(List<_AlbumPhoto> photos) {
 
 String _formatDate(DateTime date) {
   return '${date.year}年${date.month}月${date.day}日';
+}
+
+DateTime _dateFromJson(Object? value) {
+  if (value is String) {
+    return DateTime.tryParse(value) ?? DateTime.now();
+  }
+  return DateTime.now();
 }
 
 String _formatShareTime(DateTime date) {

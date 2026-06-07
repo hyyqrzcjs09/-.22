@@ -126,7 +126,7 @@ void main() {
     expect(find.text('所有权 2 人'), findsOneWidget);
   });
 
-  testWidgets('enables personal tri-ring social and selects photos',
+  testWidgets('enables personal tri-ring social and shares with inbox',
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -146,25 +146,43 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('每个环选择 3-10 张照片'), findsOneWidget);
-    expect(find.text('等待照片输入'), findsOneWidget);
-    expect(find.text('自我环'), findsWidgets);
-    expect(find.text('关系环'), findsWidgets);
-    expect(find.text('场景环'), findsWidgets);
+    expect(find.text('等待照片输入'), findsNothing);
+    expect(find.text('点击任意环查看已选照片，长按任意环添加或删除照片。'), findsOneWidget);
+    expect(find.textContaining('自我环'), findsWidgets);
+    expect(find.textContaining('关系环'), findsWidgets);
+    expect(find.textContaining('场景环'), findsWidgets);
 
-    for (var ringIndex = 0; ringIndex < 3; ringIndex++) {
+    Future<void> selectThreePhotos(String ringLabel) async {
+      await tester.longPress(find.textContaining(ringLabel).first);
+      await tester.pumpAndSettle();
+      expect(find.text('编辑$ringLabel'), findsOneWidget);
+
       for (final title in ['家庭 照片 1', '家庭 照片 2', '家庭 照片 3']) {
-        final chip = find.text('家庭 · $title').at(ringIndex);
-        await tester.ensureVisible(chip);
+        final option = find.text('家庭 · $title');
+        await tester.ensureVisible(option);
         await tester.pumpAndSettle();
-        await tester.tap(chip);
+        await tester.tap(option);
         await tester.pumpAndSettle();
       }
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
     }
 
-    expect(find.text('3/10'), findsWidgets);
-    expect(find.text('画像与匹配已生成'), findsOneWidget);
-    expect(find.textContaining('图片分析'), findsWidgets);
-    expect(find.text('用户画像：稳定型社交记忆用户'), findsOneWidget);
+    await selectThreePhotos('自我环');
+    await selectThreePhotos('关系环');
+    await selectThreePhotos('场景环');
+
+    expect(find.textContaining('3/10'), findsWidgets);
+    await tester.tap(find.textContaining('自我环').first);
+    await tester.pumpAndSettle();
+    expect(find.text('自我环照片'), findsOneWidget);
+    expect(find.text('家庭 照片 1'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('图片分析'), findsNothing);
+    expect(find.textContaining('用户画像'), findsNothing);
     expect(find.text('同频匹配推荐'), findsOneWidget);
 
     await tester.ensureVisible(find.text('同频匹配推荐'));
@@ -178,17 +196,46 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.ensureVisible(find.text('好友分享'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).last, '分享一张今日照片');
-    await tester.tap(find.text('选择图片'));
+    expect(find.text('收信'), findsOneWidget);
+    expect(find.text('同频用户 A · 记忆节奏型 分享了手账漫游'), findsOneWidget);
+
+    await tester.tap(find.text('选择好友并分享'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('分享给好友'));
+    expect(find.text('分享给好友'), findsOneWidget);
+    expect(find.text('选择收件人'), findsOneWidget);
+    await tester.tap(find.text('手账漫游'));
+    await tester.tap(find.text('编辑图片'));
+    await tester.enterText(find.byType(TextField).last, '分享一页今日手账');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('分享给好友'));
+    await tester.tap(find.text('发送'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('已向好友分享图片和文字'), findsOneWidget);
+    await tester.pumpAndSettle();
     expect(find.text('分享记录'), findsOneWidget);
-    expect(find.text('已分享 图片 + 文字'), findsOneWidget);
+    expect(find.text('已分享 手账漫游 + 图片 + 文字'), findsOneWidget);
     expect(find.textContaining('发送给 同频用户 A'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('同频用户 A · 记忆节奏型 分享了手账漫游'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('同频用户 A · 记忆节奏型 分享了手账漫游'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('同频用户 A · 记忆节奏型 的分享'), findsOneWidget);
+    expect(find.text('回复图片或文字'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, '我也想分享一张');
+    await tester.tap(find.text('选择回复图片'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('回复'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('同频用户 A · 记忆节奏型 分享了手账漫游'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('同频用户 A · 记忆节奏型 分享了手账漫游'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('回复记录'), findsOneWidget);
+    expect(find.text('我也想分享一张'), findsOneWidget);
   });
 }
