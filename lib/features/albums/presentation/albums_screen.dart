@@ -22,6 +22,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     for (final type in TriRingType.values) type: <String>{},
   };
   final _triRingFriendIds = <String>{};
+  final _triRingShareRecords = <_TriRingShareRecord>[];
   _CategoryAlbum? _openedAlbum;
   bool _socialEnabled = false;
 
@@ -59,8 +60,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
             enabled: _socialEnabled,
             selectedPhotoIds: _triRingPhotoIds,
             friendIds: _triRingFriendIds,
+            shareRecords: _triRingShareRecords,
             onFriendToggled: _toggleTriRingFriend,
             onPhotoToggled: _toggleTriRingPhoto,
+            onShare: _addTriRingShare,
             onToggle: (enabled) {
               setState(() {
                 _socialEnabled = enabled;
@@ -142,6 +145,31 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         content: Text(
             willAdd ? '已添加「${match.title}」为好友' : '已取消「${match.title}」好友推荐'),
       ),
+    );
+  }
+
+  void _addTriRingShare({
+    required bool imageAttached,
+    required String text,
+  }) {
+    final recipients = _triRingFriendIds.toList()..sort();
+    final now = DateTime.now();
+
+    setState(() {
+      _triRingShareRecords.insert(
+        0,
+        _TriRingShareRecord(
+          createdAt: now,
+          id: 'share_${now.microsecondsSinceEpoch}',
+          imageAttached: imageAttached,
+          recipients: recipients,
+          text: text.trim(),
+        ),
+      );
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已向好友分享图片和文字')),
     );
   }
 
@@ -808,8 +836,10 @@ class _TriRingSocialPanel extends ConsumerStatefulWidget {
     required this.albums,
     required this.enabled,
     required this.friendIds,
+    required this.shareRecords,
     required this.onFriendToggled,
     required this.onPhotoToggled,
+    required this.onShare,
     required this.onToggle,
     required this.selectedPhotoIds,
   });
@@ -817,8 +847,11 @@ class _TriRingSocialPanel extends ConsumerStatefulWidget {
   final List<_CategoryAlbum> albums;
   final bool enabled;
   final Set<String> friendIds;
+  final List<_TriRingShareRecord> shareRecords;
   final ValueChanged<TriRingMatchSuggestion> onFriendToggled;
   final void Function(TriRingType type, String photoId) onPhotoToggled;
+  final void Function({required bool imageAttached, required String text})
+      onShare;
   final ValueChanged<bool> onToggle;
   final Map<TriRingType, Set<String>> selectedPhotoIds;
 
@@ -933,7 +966,7 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
               const SizedBox(height: 12),
               _TriRingFriendShareBox(
                 controller: _shareController,
-                friendCount: widget.friendIds.length,
+                friendIds: widget.friendIds,
                 imageAttached: _shareImageAttached,
                 onSend: _sendFriendShare,
                 onToggleImage: () {
@@ -941,6 +974,7 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
                     _shareImageAttached = !_shareImageAttached;
                   });
                 },
+                shareRecords: widget.shareRecords,
               ),
               const SizedBox(height: 12),
               if (photoEntries.isEmpty)
@@ -989,31 +1023,31 @@ class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
       return;
     }
 
+    widget.onShare(imageAttached: _shareImageAttached, text: text);
+
     _shareController.clear();
     setState(() {
       _shareImageAttached = false;
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已向好友分享图片和文字')),
-    );
   }
 }
 
 class _TriRingFriendShareBox extends StatelessWidget {
   const _TriRingFriendShareBox({
     required this.controller,
-    required this.friendCount,
+    required this.friendIds,
     required this.imageAttached,
     required this.onSend,
     required this.onToggleImage,
+    required this.shareRecords,
   });
 
   final TextEditingController controller;
-  final int friendCount;
+  final Set<String> friendIds;
   final bool imageAttached;
   final VoidCallback onSend;
   final VoidCallback onToggleImage;
+  final List<_TriRingShareRecord> shareRecords;
 
   @override
   Widget build(BuildContext context) {
@@ -1043,7 +1077,7 @@ class _TriRingFriendShareBox extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '$friendCount 位好友',
+                  '${friendIds.length} 位好友',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: colors.onSurfaceVariant,
                         fontWeight: FontWeight.w800,
@@ -1051,6 +1085,26 @@ class _TriRingFriendShareBox extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            if (friendIds.isEmpty)
+              Text(
+                '从同频匹配添加好友后，可以在这里选择图片和文字发送。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final friend in friendIds)
+                    Chip(
+                      avatar: const Icon(Icons.person_outline, size: 16),
+                      label: Text(friend),
+                    ),
+                ],
+              ),
             const SizedBox(height: 10),
             TextField(
               controller: controller,
@@ -1085,7 +1139,104 @@ class _TriRingFriendShareBox extends StatelessWidget {
                 ),
               ],
             ),
+            if (shareRecords.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Divider(color: colors.outlineVariant),
+              const SizedBox(height: 8),
+              Text(
+                '分享记录',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              for (final record in shareRecords.take(3))
+                _TriRingShareRecordTile(record: record),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TriRingShareRecordTile extends StatelessWidget {
+  const _TriRingShareRecordTile({required this.record});
+
+  final _TriRingShareRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final summary = [
+      if (record.imageAttached) '图片',
+      if (record.text.isNotEmpty) '文字',
+    ].join(' + ');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colors.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    record.imageAttached
+                        ? Icons.photo_library_outlined
+                        : Icons.chat_bubble_outline,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '已分享 $summary',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      record.text.isEmpty ? '只分享了图片' : record.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '发送给 ${record.recipients.join('、')} · ${_formatShareTime(record.createdAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2689,6 +2840,22 @@ class _AlbumComment {
   final String text;
 }
 
+class _TriRingShareRecord {
+  const _TriRingShareRecord({
+    required this.createdAt,
+    required this.id,
+    required this.imageAttached,
+    required this.recipients,
+    required this.text,
+  });
+
+  final DateTime createdAt;
+  final String id;
+  final bool imageAttached;
+  final List<String> recipients;
+  final String text;
+}
+
 class _AlbumPhoto {
   const _AlbumPhoto({
     required this.createdAt,
@@ -2775,4 +2942,10 @@ Map<String, List<_AlbumPhoto>> _groupPhotosByDate(List<_AlbumPhoto> photos) {
 
 String _formatDate(DateTime date) {
   return '${date.year}年${date.month}月${date.day}日';
+}
+
+String _formatShareTime(DateTime date) {
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '${date.month}月${date.day}日 $hour:$minute';
 }

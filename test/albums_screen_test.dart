@@ -187,5 +187,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('已向好友分享图片和文字'), findsOneWidget);
+    expect(find.text('分享记录'), findsOneWidget);
+    expect(find.text('已分享 图片 + 文字'), findsOneWidget);
+    expect(find.textContaining('发送给 同频用户 A'), findsOneWidget);
   });
 }

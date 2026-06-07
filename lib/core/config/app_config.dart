@@ -6,6 +6,11 @@ abstract final class AppConfig {
     defaultValue: 'https://api.example.com',
   );
 
+  static bool get hasApiBaseUrl {
+    final value = apiBaseUrl.trim();
+    return value.isNotEmpty && !value.contains('api.example.com');
+  }
+
   static const mapboxAccessToken = String.fromEnvironment(
     'MAPBOX_ACCESS_TOKEN',
   );

@@ -3,12 +3,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/config/app_config.dart';
 
 const triRingMinPhotosPerRing = 3;
 const triRingMaxPhotosPerRing = 10;
 
 final triRingAgentProvider = Provider<TriRingAgent>((ref) {
-  return LocalTriRingAgent();
+  final local = LocalTriRingAgent();
+  if (!AppConfig.hasApiBaseUrl) {
+    return local;
+  }
+
+  return FallbackTriRingAgent(
+    local: local,
+    remote: RemoteTriRingAgent(ref.watch(apiClientProvider)),
+  );
 });
 
 final remoteTriRingAgentProvider = Provider<TriRingAgent>((ref) {
@@ -498,5 +507,24 @@ class RemoteTriRingAgent implements TriRingAgent {
       data: request.toJson(),
     );
     return TriRingAgentPlan.fromJson(response.data ?? const {});
+  }
+}
+
+class FallbackTriRingAgent implements TriRingAgent {
+  const FallbackTriRingAgent({
+    required this.local,
+    required this.remote,
+  });
+
+  final TriRingAgent local;
+  final TriRingAgent remote;
+
+  @override
+  Future<TriRingAgentPlan> compose(TriRingAgentRequest request) async {
+    try {
+      return await remote.compose(request);
+    } on Object {
+      return local.compose(request);
+    }
   }
 }
