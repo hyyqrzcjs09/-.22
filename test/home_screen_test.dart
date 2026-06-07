@@ -34,9 +34,19 @@ void main() {
     expect(find.text('梦境彩贴'), findsWidgets);
     expect(find.text('复古胶片'), findsOneWidget);
     expect(find.text('旅行手账'), findsOneWidget);
+    expect(find.text('森系拼贴'), findsOneWidget);
+    expect(find.text('城市霓虹'), findsOneWidget);
+    expect(find.text('海边假日'), findsOneWidget);
+    expect(find.text('校园便签'), findsOneWidget);
+    expect(find.text('节日闪闪'), findsOneWidget);
+    expect(find.text('奶油极简'), findsOneWidget);
+    expect(find.text('咖啡日记'), findsOneWidget);
+    expect(find.text('落日相片'), findsOneWidget);
     expect(find.text('黑白杂志'), findsOneWidget);
 
-    await tester.tap(find.text('复古胶片'));
+    await tester.ensureVisible(find.text('城市霓虹'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('城市霓虹'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('空间漫游'));
