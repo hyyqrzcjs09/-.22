@@ -57,19 +57,27 @@ void main() {
     await tester.tap(find.text('家庭'));
     await tester.pumpAndSettle();
 
+    expect(find.text('功能记录'), findsOneWidget);
+    expect(find.text('回忆视频已生成'), findsOneWidget);
+    expect(find.text('AR 同场景重现已生成'), findsOneWidget);
     expect(find.text('相册评论'), findsOneWidget);
     expect(find.text('发送评论'), findsOneWidget);
-    expect(find.text('2026年6月6日'), findsOneWidget);
-    expect(find.text('2026年6月5日'), findsOneWidget);
-    expect(find.text('家庭 照片 1'), findsOneWidget);
     expect(find.text('所有权 1 人'), findsOneWidget);
     expect(find.byTooltip('相册详情功能'), findsOneWidget);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -120));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, '一起补充一条评论');
-    await tester.tap(find.text('发送评论'));
+    await tester.tap(find.widgetWithText(FilledButton, '发送评论'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('一起补充一条评论'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    expect(find.text('2026年6月6日'), findsOneWidget);
+    expect(find.text('2026年6月5日'), findsOneWidget);
+    expect(find.text('家庭 照片 1'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 4));
     final firstPhoto = find.text('家庭 照片 1').first;
@@ -95,7 +103,7 @@ void main() {
 
     expect(find.text('2026年5月28日'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, 420));
+    await tester.drag(find.byType(ListView), const Offset(0, 900));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('相册详情功能'));
@@ -108,8 +116,13 @@ void main() {
     await tester.tap(find.text('添加照片'));
     await tester.pumpAndSettle();
 
-    expect(find.text('5 张照片'), findsOneWidget);
+    expect(find.text('已添加照片'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -360));
+    await tester.pumpAndSettle();
     expect(find.text('家庭 新照片 5'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 900));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('相册详情功能'));
     await tester.pumpAndSettle();
@@ -119,11 +132,28 @@ void main() {
     expect(find.text('仅用 NFC 分享该相册内容'), findsOneWidget);
     expect(find.text('变成多人相册'), findsOneWidget);
 
+    await tester.tap(find.text('仅用 NFC 分享该相册内容'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NFC 单相册分享已准备'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 900));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('相册详情功能'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('NFC 分享'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('变成多人相册'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, 900));
     await tester.pumpAndSettle();
 
     expect(find.text('多人相册'), findsOneWidget);
     expect(find.text('所有权 2 人'), findsOneWidget);
+    expect(find.text('多人相册已开启'), findsOneWidget);
   });
 
   testWidgets('enables personal tri-ring social and shares with inbox',

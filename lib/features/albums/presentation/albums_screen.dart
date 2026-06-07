@@ -302,6 +302,16 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       ],
     );
 
+    setState(() {
+      _recordAlbumActivity(
+        album,
+        icon: Icons.movie_creation_outlined,
+        title: '回忆视频已生成',
+        subtitle: '${album.photos.length} 张照片已剪辑为平滑过渡视频',
+      );
+    });
+    _persistLocalState();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已将「${album.name}」剪辑成回忆视频')),
     );
@@ -343,6 +353,16 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       return;
     }
 
+    setState(() {
+      _recordAlbumActivity(
+        album,
+        icon: Icons.view_in_ar,
+        title: 'AR 同场景重现已生成',
+        subtitle: plan.sceneMatched ? '同场景命中，图片层已准备' : '等待再次到达相同场景后重现',
+      );
+    });
+    _persistLocalState();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已为「${album.name}」生成 AR 同场景重现')),
     );
@@ -365,6 +385,16 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     _AlbumNfcAction action,
   ) async {
     if (action == _AlbumNfcAction.shareOnly) {
+      setState(() {
+        _recordAlbumActivity(
+          album,
+          icon: Icons.nfc_outlined,
+          title: 'NFC 单相册分享已准备',
+          subtitle: '仅分享「${album.name}」相册内容',
+        );
+      });
+      _persistLocalState();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('已准备通过 NFC 分享「${album.name}」相册内容')),
       );
@@ -374,6 +404,12 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     setState(() {
       album.isCollaborative = true;
       album.ownerCount = album.ownerCount < 2 ? 2 : album.ownerCount;
+      _recordAlbumActivity(
+        album,
+        icon: Icons.group_add_outlined,
+        title: '多人相册已开启',
+        subtitle: 'NFC 加入后可共同维护照片和评论',
+      );
     });
     _persistLocalState();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -392,6 +428,12 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
           id: '${album.id}_photo_${nextIndex}_${now.microsecondsSinceEpoch}',
           title: '${album.name} 新照片 $nextIndex',
         ),
+      );
+      _recordAlbumActivity(
+        album,
+        icon: Icons.add_photo_alternate_outlined,
+        title: '已添加照片',
+        subtitle: '${album.name} 新照片 $nextIndex 已加入时间轴',
       );
     });
     _persistLocalState();
@@ -422,6 +464,27 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已在「${album.name}」添加评论')),
     );
+  }
+
+  void _recordAlbumActivity(
+    _CategoryAlbum album, {
+    required IconData icon,
+    required String subtitle,
+    required String title,
+  }) {
+    album.activities.insert(
+      0,
+      _AlbumActivity(
+        createdAt: DateTime.now(),
+        icon: icon,
+        subtitle: subtitle,
+        title: title,
+      ),
+    );
+
+    if (album.activities.length > 12) {
+      album.activities.removeRange(12, album.activities.length);
+    }
   }
 }
 
@@ -518,6 +581,7 @@ class _CreateAlbumDialogState extends State<_CreateAlbumDialog> {
 
     Navigator.of(context).pop(
       _CategoryAlbum(
+        activities: _seedActivitiesForAlbum(albumName),
         comments: _seedCommentsForAlbum(albumName),
         id: 'album_${DateTime.now().microsecondsSinceEpoch}',
         icon: _selectedPreset.icon,
@@ -2588,6 +2652,8 @@ class _AlbumDetailView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        _AlbumActivityPanel(activities: album.activities),
+        const SizedBox(height: 16),
         _AlbumCommentPanel(
           album: album,
           onAddComment: (text) => onAddComment(album, text),
@@ -2655,6 +2721,80 @@ class _AlbumDetailView extends StatelessWidget {
             comments: album.comments,
             photo: photo,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumActivityPanel extends StatelessWidget {
+  const _AlbumActivityPanel({required this.activities});
+
+  final List<_AlbumActivity> activities;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.tune_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '功能记录',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+                Text(
+                  '${activities.length} 条',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (activities.isEmpty)
+              Text(
+                '使用 NFC、AR、添加照片或回忆视频后会在这里留下记录。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              )
+            else
+              for (final activity in activities.take(4))
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: CircleAvatar(
+                      backgroundColor: colors.surfaceContainerHighest,
+                      foregroundColor: colors.onSurface,
+                      child: Icon(activity.icon, size: 18),
+                    ),
+                    title: Text(activity.title),
+                    subtitle: Text(
+                      '${activity.subtitle} · ${_formatShareTime(activity.createdAt)}',
+                    ),
+                  ),
+                ),
+          ],
         ),
       ),
     );
@@ -3384,6 +3524,7 @@ class _AlbumOwnerBadge extends StatelessWidget {
 
 class _CategoryAlbum {
   _CategoryAlbum({
+    required this.activities,
     required this.comments,
     required this.id,
     required this.icon,
@@ -3391,6 +3532,7 @@ class _CategoryAlbum {
     required this.photos,
   });
 
+  final List<_AlbumActivity> activities;
   final List<_AlbumComment> comments;
   final String id;
   final IconData icon;
@@ -3402,6 +3544,20 @@ class _CategoryAlbum {
   String get sceneSignature {
     return '$id:${photos.map((photo) => photo.id).join('|')}';
   }
+}
+
+class _AlbumActivity {
+  const _AlbumActivity({
+    required this.createdAt,
+    required this.icon,
+    required this.subtitle,
+    required this.title,
+  });
+
+  final DateTime createdAt;
+  final IconData icon;
+  final String subtitle;
+  final String title;
 }
 
 class _AlbumComment {
@@ -3543,6 +3699,17 @@ List<_AlbumPhoto> _seedPhotosForAlbum(String albumName) {
   ];
 }
 
+List<_AlbumActivity> _seedActivitiesForAlbum(String albumName) {
+  return [
+    _AlbumActivity(
+      createdAt: DateTime.now(),
+      icon: Icons.create_new_folder_outlined,
+      subtitle: '已准备 NFC、AR、添加照片和回忆视频入口',
+      title: '已建立$albumName相册',
+    ),
+  ];
+}
+
 List<_AlbumComment> _seedCommentsForAlbum(String albumName) {
   return [
     _AlbumComment(
@@ -3562,6 +3729,9 @@ List<_AlbumComment> _seedCommentsForAlbum(String albumName) {
 
 Map<String, Object?> _albumToJson(_CategoryAlbum album) {
   return {
+    'activities': [
+      for (final activity in album.activities) _activityToJson(activity),
+    ],
     'comments': [for (final comment in album.comments) _commentToJson(comment)],
     'icon': _iconToJson(album.icon),
     'id': album.id,
@@ -3585,6 +3755,7 @@ List<_CategoryAlbum> _albumsFromJson(Object? value) {
 
 _CategoryAlbum _albumFromJson(Map<String, Object?> json) {
   final album = _CategoryAlbum(
+    activities: _activitiesFromJson(json['activities']),
     comments: _commentsFromJson(json['comments']),
     id: json['id'] as String? ??
         'album_${DateTime.now().microsecondsSinceEpoch}',
@@ -3595,6 +3766,35 @@ _CategoryAlbum _albumFromJson(Map<String, Object?> json) {
   album.isCollaborative = json['isCollaborative'] as bool? ?? false;
   album.ownerCount = json['ownerCount'] as int? ?? 1;
   return album;
+}
+
+Map<String, Object?> _activityToJson(_AlbumActivity activity) {
+  return {
+    'createdAt': activity.createdAt.toIso8601String(),
+    'icon': _iconToJson(activity.icon),
+    'subtitle': activity.subtitle,
+    'title': activity.title,
+  };
+}
+
+List<_AlbumActivity> _activitiesFromJson(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return [
+    for (final item in value)
+      if (item is Map) _activityFromJson(item.cast<String, Object?>()),
+  ];
+}
+
+_AlbumActivity _activityFromJson(Map<String, Object?> json) {
+  return _AlbumActivity(
+    createdAt: _dateFromJson(json['createdAt']),
+    icon: _iconFromJson(json['icon']),
+    subtitle: json['subtitle'] as String? ?? '',
+    title: json['title'] as String? ?? '功能记录',
+  );
 }
 
 Map<String, Object?> _photoToJson(_AlbumPhoto photo) {
@@ -3777,6 +3977,24 @@ IconData _iconFromJson(Object? value) {
     }
     if (codePoint == Icons.edit_note_outlined.codePoint) {
       return Icons.edit_note_outlined;
+    }
+    if (codePoint == Icons.create_new_folder_outlined.codePoint) {
+      return Icons.create_new_folder_outlined;
+    }
+    if (codePoint == Icons.movie_creation_outlined.codePoint) {
+      return Icons.movie_creation_outlined;
+    }
+    if (codePoint == Icons.view_in_ar.codePoint) {
+      return Icons.view_in_ar;
+    }
+    if (codePoint == Icons.nfc_outlined.codePoint) {
+      return Icons.nfc_outlined;
+    }
+    if (codePoint == Icons.group_add_outlined.codePoint) {
+      return Icons.group_add_outlined;
+    }
+    if (codePoint == Icons.add_photo_alternate_outlined.codePoint) {
+      return Icons.add_photo_alternate_outlined;
     }
   }
   return Icons.folder_outlined;
