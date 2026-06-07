@@ -15,6 +15,8 @@ void main() {
       UserSettings.defaults.copyWith(
         albumBackgroundColor: const Color(0xFF121212),
         albumDisplayMode: AlbumDisplayMode.stack,
+        avatarImageBase64: 'avatar-data',
+        nickname: 'Encounter 用户',
         phoneNumber: '13800000000',
         timeRoamDisplayMode: TimeRoamDisplayMode.month,
         userId: 'PLV-0000-1298',
@@ -26,6 +28,8 @@ void main() {
 
     expect(restored.albumBackgroundColor.toARGB32(), 0xFF121212);
     expect(restored.albumDisplayMode, AlbumDisplayMode.stack);
+    expect(restored.avatarImageBase64, 'avatar-data');
+    expect(restored.nickname, 'Encounter 用户');
     expect(restored.phoneNumber, '13800000000');
     expect(restored.timeRoamDisplayMode, TimeRoamDisplayMode.month);
     expect(restored.userId, 'PLV-0000-1298');

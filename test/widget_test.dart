@@ -47,6 +47,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('PLV-'), findsOneWidget);
+    expect(find.text('点击编辑昵称和头像'), findsOneWidget);
+    await tester.tap(find.text('点击编辑昵称和头像'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账号资料'), findsOneWidget);
+    expect(find.text('上传头像'), findsOneWidget);
+    expect(find.text('昵称'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, 'Encounter 小伙伴');
+    await tester.tap(find.text('保存资料'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Encounter 小伙伴'), findsOneWidget);
     expect(find.text('地点漫游后的展示形式'), findsOneWidget);
     expect(find.text('打开调色板'), findsOneWidget);
 

@@ -6,6 +6,7 @@ import '../../../app/app_router.dart';
 import '../../../shared/widgets/album_color_picker.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../application/user_settings.dart';
+import 'profile_avatar.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -13,7 +14,6 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(userSettingsProvider);
-    final colors = Theme.of(context).colorScheme;
 
     return AppScaffold(
       selectedIndex: 2,
@@ -21,56 +21,8 @@ class ProfileScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colors.outlineVariant),
-              boxShadow: const [
-                BoxShadow(
-                  blurRadius: 22,
-                  color: Color(0x18000000),
-                  offset: Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: colors.primary,
-                    foregroundColor: colors.onPrimary,
-                    child: const Icon(Icons.person, size: 34),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          settings.userId ?? '未分配 ID',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          settings.phoneNumber ?? '手机号验证码登录后自动分配 ID',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _NfcFriendExchangeButton(
-                    phoneNumber: settings.phoneNumber,
-                    userId: settings.userId,
-                  ),
-                ],
-              ),
-            ),
+          _AccountProfileCard(
+            settings: settings,
           ),
           const SizedBox(height: 16),
           _SettingsPanel(
@@ -105,6 +57,100 @@ class ProfileScreen extends ConsumerWidget {
             subtitle: '管理视频生成、过渡和播放偏好',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AccountProfileCard extends StatelessWidget {
+  const _AccountProfileCard({required this.settings});
+
+  final UserSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final displayName = settings.nickname?.trim().isNotEmpty == true
+        ? settings.nickname!.trim()
+        : settings.userId ?? '未分配 ID';
+    final accountLine = settings.nickname?.trim().isNotEmpty == true
+        ? settings.userId ?? '登录后自动生成 ID'
+        : settings.phoneNumber ?? '手机号验证码登录后自动分配 ID';
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      shadowColor: const Color(0x18000000),
+      elevation: 2,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colors.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => context.push(AppRoutes.profileAccount),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        ProfileAvatar(
+                          imageBase64: settings.avatarImageBase64,
+                          radius: 30,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w900),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                accountLine,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '点击编辑昵称和头像',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _NfcFriendExchangeButton(
+                phoneNumber: settings.phoneNumber,
+                userId: settings.userId,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

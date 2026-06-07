@@ -40,12 +40,16 @@ class UserSettings {
     required this.albumBackgroundColor,
     required this.albumDisplayMode,
     required this.timeRoamDisplayMode,
+    this.avatarImageBase64,
+    this.nickname,
     this.phoneNumber,
     this.userId,
   });
 
   final Color albumBackgroundColor;
   final AlbumDisplayMode albumDisplayMode;
+  final String? avatarImageBase64;
+  final String? nickname;
   final String? phoneNumber;
   final TimeRoamDisplayMode timeRoamDisplayMode;
   final String? userId;
@@ -61,6 +65,8 @@ class UserSettings {
   UserSettings copyWith({
     Color? albumBackgroundColor,
     AlbumDisplayMode? albumDisplayMode,
+    String? avatarImageBase64,
+    String? nickname,
     String? phoneNumber,
     TimeRoamDisplayMode? timeRoamDisplayMode,
     String? userId,
@@ -68,6 +74,8 @@ class UserSettings {
     return UserSettings(
       albumBackgroundColor: albumBackgroundColor ?? this.albumBackgroundColor,
       albumDisplayMode: albumDisplayMode ?? this.albumDisplayMode,
+      avatarImageBase64: avatarImageBase64 ?? this.avatarImageBase64,
+      nickname: nickname ?? this.nickname,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       timeRoamDisplayMode: timeRoamDisplayMode ?? this.timeRoamDisplayMode,
       userId: userId ?? this.userId,
@@ -100,6 +108,8 @@ class SharedPreferencesUserSettingsStore implements UserSettingsStore {
 
   static const _albumBackgroundColorKey = 'user.albumBackgroundColor';
   static const _albumDisplayModeKey = 'user.albumDisplayMode';
+  static const _avatarImageBase64Key = 'user.avatarImageBase64';
+  static const _nicknameKey = 'user.nickname';
   static const _phoneNumberKey = 'user.phoneNumber';
   static const _timeRoamDisplayModeKey = 'user.timeRoamDisplayMode';
   static const _userIdKey = 'user.userId';
@@ -114,6 +124,8 @@ class SharedPreferencesUserSettingsStore implements UserSettingsStore {
       albumDisplayMode: _readAlbumDisplayMode(
         _preferences.getString(_albumDisplayModeKey),
       ),
+      avatarImageBase64: _preferences.getString(_avatarImageBase64Key),
+      nickname: _preferences.getString(_nicknameKey),
       phoneNumber: _preferences.getString(_phoneNumberKey),
       timeRoamDisplayMode: _readTimeRoamDisplayMode(
         _preferences.getString(_timeRoamDisplayModeKey),
@@ -138,6 +150,22 @@ class SharedPreferencesUserSettingsStore implements UserSettingsStore {
       _timeRoamDisplayModeKey,
       settings.timeRoamDisplayMode.name,
     ));
+
+    final avatarImageBase64 = settings.avatarImageBase64;
+    if (avatarImageBase64 == null || avatarImageBase64.isEmpty) {
+      unawaited(_preferences.remove(_avatarImageBase64Key));
+    } else {
+      unawaited(
+        _preferences.setString(_avatarImageBase64Key, avatarImageBase64),
+      );
+    }
+
+    final nickname = settings.nickname;
+    if (nickname == null || nickname.isEmpty) {
+      unawaited(_preferences.remove(_nicknameKey));
+    } else {
+      unawaited(_preferences.setString(_nicknameKey, nickname));
+    }
 
     final phoneNumber = settings.phoneNumber;
     if (phoneNumber == null) {
@@ -210,6 +238,22 @@ class UserSettingsController extends Notifier<UserSettings> {
 
   void setTimeRoamDisplayMode(TimeRoamDisplayMode mode) {
     state = state.copyWith(timeRoamDisplayMode: mode);
+    _persist();
+  }
+
+  void setAccountProfile({
+    required String nickname,
+    String? avatarImageBase64,
+  }) {
+    state = UserSettings(
+      albumBackgroundColor: state.albumBackgroundColor,
+      albumDisplayMode: state.albumDisplayMode,
+      avatarImageBase64: avatarImageBase64,
+      nickname: nickname.trim().isEmpty ? null : nickname.trim(),
+      phoneNumber: state.phoneNumber,
+      timeRoamDisplayMode: state.timeRoamDisplayMode,
+      userId: state.userId,
+    );
     _persist();
   }
 
