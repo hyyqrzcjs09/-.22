@@ -358,7 +358,7 @@ class LocalTriRingAgent implements TriRingAgent {
 
     return TriRingAgentPlan(
       guidance: complete
-          ? '三色环已达到分析要求，后台可用该结构生成用户画像并进入匹配系统。'
+          ? '三色环已达到分析要求，后台会按照片风格、内容主题和社交权重生成用户画像，仅推荐匹配度超过 70% 的同频用户。'
           : '请把每个环补齐到至少 $triRingMinPhotosPerRing 张照片，补齐后生成完整画像和匹配结果。',
       headline: complete ? '画像与匹配已生成' : '三色环分析草稿',
       imageAnalyses: analyses,
@@ -444,16 +444,22 @@ class LocalTriRingAgent implements TriRingAgent {
     final relationCount = request.selectedCountFor(TriRingType.relationship);
     return [
       TriRingMatchSuggestion(
-        reason: '三色环完整度高，适合匹配相似照片记录频率的用户。',
+        reason: '照片节奏、情绪表达和地点记录频率接近，适合推荐后由用户自行决定是否加好友。',
         score: 92,
-        title: '相似记忆节奏',
+        title: '同频用户 A · 记忆节奏型',
       ),
       TriRingMatchSuggestion(
         reason: sceneCount >= relationCount
-            ? '场景环内容更强，可优先匹配地点兴趣相近的人。'
-            : '关系环内容更强，可优先匹配社交互动偏好相近的人。',
+            ? '场景环权重更高，地点兴趣、城市漫游和拍摄视角接近。'
+            : '关系环权重更高，互动密度、合照偏好和陪伴叙事接近。',
         score: 86,
-        title: sceneCount >= relationCount ? '地点偏好匹配' : '关系偏好匹配',
+        title:
+            sceneCount >= relationCount ? '同频用户 B · 地点探索型' : '同频用户 B · 关系陪伴型',
+      ),
+      TriRingMatchSuggestion(
+        reason: '三色环内容结构达到推荐阈值，可作为轻社交候选展示，等待用户确认联系方式。',
+        score: 74,
+        title: '同频用户 C · 轻社交记录型',
       ),
     ];
   }

@@ -21,6 +21,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   final _triRingPhotoIds = {
     for (final type in TriRingType.values) type: <String>{},
   };
+  final _triRingFriendIds = <String>{};
   _CategoryAlbum? _openedAlbum;
   bool _socialEnabled = false;
 
@@ -41,6 +42,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
           },
           onNfcAction: _handleNfcAction,
           onAddPhoto: _addPhotoToAlbum,
+          onAddComment: _addAlbumComment,
           onStartArReplay: _startArReplay,
         ),
       );
@@ -56,6 +58,8 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
             albums: _albums,
             enabled: _socialEnabled,
             selectedPhotoIds: _triRingPhotoIds,
+            friendIds: _triRingFriendIds,
+            onFriendToggled: _toggleTriRingFriend,
             onPhotoToggled: _toggleTriRingPhoto,
             onToggle: (enabled) {
               setState(() {
@@ -120,6 +124,25 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
       ringPhotoIds.add(photoId);
     });
+  }
+
+  void _toggleTriRingFriend(TriRingMatchSuggestion match) {
+    final willAdd = !_triRingFriendIds.contains(match.title);
+
+    setState(() {
+      if (willAdd) {
+        _triRingFriendIds.add(match.title);
+      } else {
+        _triRingFriendIds.remove(match.title);
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            willAdd ? '已添加「${match.title}」为好友' : '已取消「${match.title}」好友推荐'),
+      ),
+    );
   }
 
   void _createMemoryVideo(_CategoryAlbum album) {
@@ -230,6 +253,28 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
       SnackBar(content: Text('已向「${album.name}」添加照片')),
     );
   }
+
+  void _addAlbumComment(_CategoryAlbum album, String text) {
+    final value = text.trim();
+    if (value.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      album.comments.add(
+        _AlbumComment(
+          author: '我',
+          color: Colors.black,
+          createdAt: DateTime.now(),
+          text: value,
+        ),
+      );
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已在「${album.name}」添加评论')),
+    );
+  }
 }
 
 class _CreateAlbumDialog extends StatefulWidget {
@@ -319,19 +364,17 @@ class _CreateAlbumDialogState extends State<_CreateAlbumDialog> {
     if (_selectedPreset == _CategoryAlbumPreset.other && customName.isEmpty) {
       return;
     }
+    final albumName = _selectedPreset == _CategoryAlbumPreset.other
+        ? customName
+        : _selectedPreset.label;
 
     Navigator.of(context).pop(
       _CategoryAlbum(
+        comments: _seedCommentsForAlbum(albumName),
         id: 'album_${DateTime.now().microsecondsSinceEpoch}',
         icon: _selectedPreset.icon,
-        photos: _seedPhotosForAlbum(
-          _selectedPreset == _CategoryAlbumPreset.other
-              ? customName
-              : _selectedPreset.label,
-        ),
-        name: _selectedPreset == _CategoryAlbumPreset.other
-            ? customName
-            : _selectedPreset.label,
+        photos: _seedPhotosForAlbum(albumName),
+        name: albumName,
       ),
     );
   }
@@ -760,10 +803,12 @@ class _MovingArPhotoCard extends StatelessWidget {
   }
 }
 
-class _TriRingSocialPanel extends ConsumerWidget {
+class _TriRingSocialPanel extends ConsumerStatefulWidget {
   const _TriRingSocialPanel({
     required this.albums,
     required this.enabled,
+    required this.friendIds,
+    required this.onFriendToggled,
     required this.onPhotoToggled,
     required this.onToggle,
     required this.selectedPhotoIds,
@@ -771,15 +816,32 @@ class _TriRingSocialPanel extends ConsumerWidget {
 
   final List<_CategoryAlbum> albums;
   final bool enabled;
+  final Set<String> friendIds;
+  final ValueChanged<TriRingMatchSuggestion> onFriendToggled;
   final void Function(TriRingType type, String photoId) onPhotoToggled;
   final ValueChanged<bool> onToggle;
   final Map<TriRingType, Set<String>> selectedPhotoIds;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TriRingSocialPanel> createState() =>
+      _TriRingSocialPanelState();
+}
+
+class _TriRingSocialPanelState extends ConsumerState<_TriRingSocialPanel> {
+  final _shareController = TextEditingController();
+  bool _shareImageAttached = false;
+
+  @override
+  void dispose() {
+    _shareController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final photoEntries = [
-      for (final album in albums)
+      for (final album in widget.albums)
         for (final photo in album.photos)
           _TriRingPhotoEntry(
             albumName: album.name,
@@ -790,12 +852,12 @@ class _TriRingSocialPanel extends ConsumerWidget {
     final selectedEntriesByRing = {
       for (final type in TriRingType.values)
         type: photoEntries
-            .where((entry) => selectedPhotoIds[type]!.contains(entry.id))
+            .where((entry) => widget.selectedPhotoIds[type]!.contains(entry.id))
             .take(triRingMaxPhotosPerRing)
             .toList(),
     };
     final agentRequest = TriRingAgentRequest(
-      socialEnabled: enabled,
+      socialEnabled: widget.enabled,
       rings: [
         for (final type in TriRingType.values)
           TriRingPhotoSelection(
@@ -848,7 +910,7 @@ class _TriRingSocialPanel extends ConsumerWidget {
                                 ),
                       ),
                       Text(
-                        enabled ? '每个环选择 3-10 张照片' : '关闭时保留原有比邻环功能',
+                        widget.enabled ? '每个环选择 3-10 张照片' : '关闭时保留原有比邻环功能',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
@@ -856,14 +918,30 @@ class _TriRingSocialPanel extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Switch(value: enabled, onChanged: onToggle),
+                Switch(value: widget.enabled, onChanged: widget.onToggle),
               ],
             ),
-            if (enabled) ...[
+            if (widget.enabled) ...[
               const SizedBox(height: 14),
               _TriRingPreview(entriesByRing: selectedEntriesByRing),
               const SizedBox(height: 12),
-              _TriRingAgentInsight(plan: agentPlan),
+              _TriRingAgentInsight(
+                friendIds: widget.friendIds,
+                onFriendToggled: widget.onFriendToggled,
+                plan: agentPlan,
+              ),
+              const SizedBox(height: 12),
+              _TriRingFriendShareBox(
+                controller: _shareController,
+                friendCount: widget.friendIds.length,
+                imageAttached: _shareImageAttached,
+                onSend: _sendFriendShare,
+                onToggleImage: () {
+                  setState(() {
+                    _shareImageAttached = !_shareImageAttached;
+                  });
+                },
+              ),
               const SizedBox(height: 12),
               if (photoEntries.isEmpty)
                 Text(
@@ -879,9 +957,9 @@ class _TriRingSocialPanel extends ConsumerWidget {
                     for (final type in TriRingType.values) ...[
                       _TriRingPhotoPicker(
                         entries: photoEntries,
-                        selectedIds: selectedPhotoIds[type]!,
+                        selectedIds: widget.selectedPhotoIds[type]!,
                         type: type,
-                        onPhotoToggled: onPhotoToggled,
+                        onPhotoToggled: widget.onPhotoToggled,
                       ),
                       if (type != TriRingType.values.last)
                         const SizedBox(height: 14),
@@ -894,11 +972,135 @@ class _TriRingSocialPanel extends ConsumerWidget {
       ),
     );
   }
+
+  void _sendFriendShare() {
+    final text = _shareController.text.trim();
+    if (widget.friendIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('先从同频匹配里添加好友后再分享')),
+      );
+      return;
+    }
+
+    if (text.isEmpty && !_shareImageAttached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请选择图片或输入文字后再分享')),
+      );
+      return;
+    }
+
+    _shareController.clear();
+    setState(() {
+      _shareImageAttached = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已向好友分享图片和文字')),
+    );
+  }
+}
+
+class _TriRingFriendShareBox extends StatelessWidget {
+  const _TriRingFriendShareBox({
+    required this.controller,
+    required this.friendCount,
+    required this.imageAttached,
+    required this.onSend,
+    required this.onToggleImage,
+  });
+
+  final TextEditingController controller;
+  final int friendCount;
+  final bool imageAttached;
+  final VoidCallback onSend;
+  final VoidCallback onToggleImage;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.ios_share_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '好友分享',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+                Text(
+                  '$friendCount 位好友',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: '写一段想和好友分享的文字',
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilterChip(
+                  avatar: Icon(
+                    imageAttached
+                        ? Icons.check_circle
+                        : Icons.add_photo_alternate_outlined,
+                    size: 18,
+                  ),
+                  label: Text(imageAttached ? '已选择图片' : '选择图片'),
+                  selected: imageAttached,
+                  onSelected: (_) => onToggleImage(),
+                ),
+                FilledButton.icon(
+                  onPressed: onSend,
+                  icon: const Icon(Icons.send_outlined),
+                  label: const Text('分享给好友'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _TriRingAgentInsight extends StatelessWidget {
-  const _TriRingAgentInsight({required this.plan});
+  const _TriRingAgentInsight({
+    required this.friendIds,
+    required this.onFriendToggled,
+    required this.plan,
+  });
 
+  final Set<String> friendIds;
+  final ValueChanged<TriRingMatchSuggestion> onFriendToggled;
   final AsyncValue<TriRingAgentPlan> plan;
 
   @override
@@ -1002,19 +1204,24 @@ class _TriRingAgentInsight extends StatelessWidget {
               if (data.matches.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  '匹配系统',
+                  '同频匹配推荐',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                 ),
+                Text(
+                  '匹配度超过 70% 后才进入推荐，是否加好友由你确认。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                ),
                 const SizedBox(height: 6),
-                for (final match in data.matches)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '${match.title} ${match.score}%：${match.reason}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                for (final match
+                    in data.matches.where((match) => match.score >= 70))
+                  _TriRingMatchCard(
+                    friendAdded: friendIds.contains(match.title),
+                    match: match,
+                    onFriendToggled: () => onFriendToggled(match),
                   ),
               ],
             ],
@@ -1035,6 +1242,90 @@ class _TriRingAgentInsight extends StatelessWidget {
               Text(
                 '智能体正在整理三色环...',
                 style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TriRingMatchCard extends StatelessWidget {
+  const _TriRingMatchCard({
+    required this.friendAdded,
+    required this.match,
+    required this.onFriendToggled,
+  });
+
+  final bool friendAdded;
+  final TriRingMatchSuggestion match;
+  final VoidCallback onFriendToggled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colors.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      match.title,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  Text(
+                    '${match.score}%',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  minHeight: 7,
+                  value: match.score.clamp(0, 100).toDouble() / 100,
+                  backgroundColor: colors.surfaceContainerHighest,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                match.reason,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: onFriendToggled,
+                  icon: Icon(
+                    friendAdded
+                        ? Icons.person_remove_alt_1_outlined
+                        : Icons.person_add_alt_1_outlined,
+                  ),
+                  label: Text(friendAdded ? '已加好友' : '加好友'),
+                ),
               ),
             ],
           ),
@@ -1440,6 +1731,7 @@ class _AlbumDetailView extends StatelessWidget {
   const _AlbumDetailView({
     required this.album,
     required this.onBack,
+    required this.onAddComment,
     required this.onAddPhoto,
     required this.onNfcAction,
     required this.onStartArReplay,
@@ -1447,6 +1739,7 @@ class _AlbumDetailView extends StatelessWidget {
 
   final _CategoryAlbum album;
   final VoidCallback onBack;
+  final void Function(_CategoryAlbum album, String text) onAddComment;
   final void Function(_CategoryAlbum album) onAddPhoto;
   final void Function(_CategoryAlbum album, _AlbumNfcAction action) onNfcAction;
   final void Function(_CategoryAlbum album) onStartArReplay;
@@ -1566,9 +1859,16 @@ class _AlbumDetailView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        _AlbumCommentPanel(
+          album: album,
+          onAddComment: (text) => onAddComment(album, text),
+        ),
+        const SizedBox(height: 16),
         for (final group in groupedPhotos.entries)
           _AlbumTimelineGroup(
+            comments: album.comments,
             dateLabel: group.key,
+            onPhotoTap: (photo) => _showPhotoViewer(context, photo),
             photos: group.value,
           ),
       ],
@@ -1611,15 +1911,151 @@ class _AlbumDetailView extends StatelessWidget {
       onNfcAction(album, action);
     }
   }
+
+  void _showPhotoViewer(BuildContext context, _AlbumPhoto photo) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+            maxWidth: 720,
+          ),
+          child: _AlbumPhotoViewer(
+            comments: album.comments,
+            photo: photo,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumCommentPanel extends StatefulWidget {
+  const _AlbumCommentPanel({
+    required this.album,
+    required this.onAddComment,
+  });
+
+  final _CategoryAlbum album;
+  final ValueChanged<String> onAddComment;
+
+  @override
+  State<_AlbumCommentPanel> createState() => _AlbumCommentPanelState();
+}
+
+class _AlbumCommentPanelState extends State<_AlbumCommentPanel> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.forum_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '相册评论',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+                Text(
+                  '${widget.album.comments.length} 条',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final comment in widget.album.comments.take(4))
+                  Chip(
+                    avatar: CircleAvatar(
+                      backgroundColor: comment.color,
+                      child: Text(
+                        comment.author.isEmpty
+                            ? '?'
+                            : comment.author.substring(0, 1),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    label: Text('${comment.author}：${comment.text}'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: '相册所有人都可以评论',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () {
+                    final text = _controller.text;
+                    widget.onAddComment(text);
+                    if (text.trim().isNotEmpty) {
+                      _controller.clear();
+                    }
+                  },
+                  child: const Text('发送评论'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _AlbumTimelineGroup extends StatelessWidget {
   const _AlbumTimelineGroup({
+    required this.comments,
     required this.dateLabel,
+    required this.onPhotoTap,
     required this.photos,
   });
 
+  final List<_AlbumComment> comments;
   final String dateLabel;
+  final ValueChanged<_AlbumPhoto> onPhotoTap;
   final List<_AlbumPhoto> photos;
 
   @override
@@ -1731,7 +2167,11 @@ class _AlbumTimelineGroup extends StatelessWidget {
                         crossAxisSpacing: spacing,
                       ),
                       itemBuilder: (context, index) {
-                        return _AlbumPhotoTile(photo: photos[index]);
+                        return _AlbumPhotoTile(
+                          commentCount: comments.length,
+                          onTap: () => onPhotoTap(photos[index]),
+                          photo: photos[index],
+                        );
                       },
                     ),
                   ),
@@ -1746,55 +2186,426 @@ class _AlbumTimelineGroup extends StatelessWidget {
 }
 
 class _AlbumPhotoTile extends StatelessWidget {
-  const _AlbumPhotoTile({required this.photo});
+  const _AlbumPhotoTile({
+    required this.commentCount,
+    required this.onTap,
+    required this.photo,
+  });
 
+  final int commentCount;
+  final VoidCallback onTap;
   final _AlbumPhoto photo;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      elevation: 1,
+      shadowColor: const Color(0x16000000),
+      surfaceTintColor: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colors.outlineVariant.withValues(alpha: 0.74),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.image_outlined),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Text(
+                              '弹幕 $commentCount',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  photo.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumPhotoViewer extends StatefulWidget {
+  const _AlbumPhotoViewer({
+    required this.comments,
+    required this.photo,
+  });
+
+  final List<_AlbumComment> comments;
+  final _AlbumPhoto photo;
+
+  @override
+  State<_AlbumPhotoViewer> createState() => _AlbumPhotoViewerState();
+}
+
+class _AlbumPhotoViewerState extends State<_AlbumPhotoViewer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _barrageEnabled = true;
+  bool _showBarrageSettings = false;
+  Color _barrageColor = Colors.white;
+  double _barrageOpacity = 0.84;
+  double _barrageSpeed = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 13),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final sheetHeight = math.min(
+      560.0,
+      MediaQuery.sizeOf(context).height * 0.86,
+    );
+    final viewerHeight = math.min(
+      260.0,
+      sheetHeight * 0.48,
+    );
+
+    return SafeArea(
+      child: SizedBox(
+        height: sheetHeight,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.photo.title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  Text(
+                    '${widget.comments.length} 条弹幕',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: viewerHeight,
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainerHighest,
+                            border: Border.all(color: colors.outlineVariant),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              color: colors.onSurfaceVariant,
+                              size: 54,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_barrageEnabled && widget.comments.isNotEmpty)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: _BarrageOverlay(
+                              animation: _controller,
+                              color: _barrageColor.withValues(
+                                alpha: _barrageOpacity,
+                              ),
+                              comments: widget.comments,
+                              speed: _barrageSpeed,
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: Tooltip(
+                          message: '弹幕设置',
+                          child: IconButton.filled(
+                            onPressed: () {
+                              setState(() {
+                                _showBarrageSettings = !_showBarrageSettings;
+                              });
+                            },
+                            icon: const Icon(Icons.subtitles_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_showBarrageSettings) ...[
+                const SizedBox(height: 12),
+                _BarrageSettingsPanel(
+                  color: _barrageColor,
+                  enabled: _barrageEnabled,
+                  opacity: _barrageOpacity,
+                  speed: _barrageSpeed,
+                  onColorChanged: (color) {
+                    setState(() {
+                      _barrageColor = color;
+                    });
+                  },
+                  onEnabledChanged: (value) {
+                    setState(() {
+                      _barrageEnabled = value;
+                    });
+                  },
+                  onOpacityChanged: (value) {
+                    setState(() {
+                      _barrageOpacity = value;
+                    });
+                  },
+                  onSpeedChanged: (value) {
+                    setState(() {
+                      _barrageSpeed = value;
+                    });
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarrageOverlay extends StatelessWidget {
+  const _BarrageOverlay({
+    required this.animation,
+    required this.color,
+    required this.comments,
+    required this.speed,
+  });
+
+  final Animation<double> animation;
+  final Color color;
+  final List<_AlbumComment> comments;
+  final double speed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                for (var index = 0; index < comments.length; index++)
+                  Positioned(
+                    left: _leftFor(index, constraints.maxWidth),
+                    top: 18.0 + (index % 5) * 34,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.24),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        child: Text(
+                          '${comments[index].author}：${comments[index].text}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: color,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  double _leftFor(int index, double width) {
+    final progress = (animation.value * speed + index * 0.19) % 1.0;
+    return width - progress * (width + 280);
+  }
+}
+
+class _BarrageSettingsPanel extends StatelessWidget {
+  const _BarrageSettingsPanel({
+    required this.color,
+    required this.enabled,
+    required this.opacity,
+    required this.speed,
+    required this.onColorChanged,
+    required this.onEnabledChanged,
+    required this.onOpacityChanged,
+    required this.onSpeedChanged,
+  });
+
+  final Color color;
+  final bool enabled;
+  final double opacity;
+  final double speed;
+  final ValueChanged<Color> onColorChanged;
+  final ValueChanged<bool> onEnabledChanged;
+  final ValueChanged<double> onOpacityChanged;
+  final ValueChanged<double> onSpeedChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    const options = [
+      Colors.white,
+      Colors.black,
+      Color(0xFFE53935),
+      Color(0xFF1E88E5),
+      Color(0xFFFFB300),
+    ];
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border:
-            Border.all(color: colors.outlineVariant.withValues(alpha: 0.74)),
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 14,
-            color: Color(0x10000000),
-            offset: Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.primaryContainer.withValues(alpha: 0.62),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.image_outlined,
-                    color: colors.onPrimaryContainer,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '开启弹幕',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                 ),
-              ),
+                Switch(value: enabled, onChanged: onEnabledChanged),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
-              photo.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              '弹幕颜色',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                   ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final option in options)
+                  ChoiceChip(
+                    avatar: CircleAvatar(backgroundColor: option),
+                    label: Text(option == Colors.white ? '白' : '色'),
+                    selected: color == option,
+                    onSelected: (_) => onColorChanged(option),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('透明度 ${(opacity * 100).round()}%'),
+            Slider(
+              min: 0.2,
+              max: 1,
+              divisions: 8,
+              value: opacity,
+              onChanged: onOpacityChanged,
+            ),
+            Text('播放速度 ${speed.toStringAsFixed(1)}x'),
+            Slider(
+              min: 0.5,
+              max: 2,
+              divisions: 6,
+              value: speed,
+              onChanged: onSpeedChanged,
             ),
           ],
         ),
@@ -1844,12 +2655,14 @@ class _AlbumOwnerBadge extends StatelessWidget {
 
 class _CategoryAlbum {
   _CategoryAlbum({
+    required this.comments,
     required this.id,
     required this.icon,
     required this.name,
     required this.photos,
   });
 
+  final List<_AlbumComment> comments;
   final String id;
   final IconData icon;
   bool isCollaborative = false;
@@ -1860,6 +2673,20 @@ class _CategoryAlbum {
   String get sceneSignature {
     return '$id:${photos.map((photo) => photo.id).join('|')}';
   }
+}
+
+class _AlbumComment {
+  const _AlbumComment({
+    required this.author,
+    required this.color,
+    required this.createdAt,
+    required this.text,
+  });
+
+  final String author;
+  final Color color;
+  final DateTime createdAt;
+  final String text;
 }
 
 class _AlbumPhoto {
@@ -1912,6 +2739,23 @@ List<_AlbumPhoto> _seedPhotosForAlbum(String albumName) {
       createdAt: DateTime(2026, 5, 28),
       id: '${albumName}_photo_4',
       title: '$albumName 照片 4',
+    ),
+  ];
+}
+
+List<_AlbumComment> _seedCommentsForAlbum(String albumName) {
+  return [
+    _AlbumComment(
+      author: '我',
+      color: Colors.black,
+      createdAt: DateTime(2026, 6, 6, 18, 20),
+      text: '$albumName 这一天很值得留下',
+    ),
+    _AlbumComment(
+      author: '同行者',
+      color: const Color(0xFF424242),
+      createdAt: DateTime(2026, 6, 6, 19, 4),
+      text: '下次可以把这组做成 AR 回放',
     ),
   ];
 }

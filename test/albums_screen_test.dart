@@ -57,12 +57,46 @@ void main() {
     await tester.tap(find.text('家庭'));
     await tester.pumpAndSettle();
 
+    expect(find.text('相册评论'), findsOneWidget);
+    expect(find.text('发送评论'), findsOneWidget);
     expect(find.text('2026年6月6日'), findsOneWidget);
     expect(find.text('2026年6月5日'), findsOneWidget);
-    expect(find.text('2026年5月28日'), findsOneWidget);
     expect(find.text('家庭 照片 1'), findsOneWidget);
     expect(find.text('所有权 1 人'), findsOneWidget);
     expect(find.byTooltip('相册详情功能'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, '一起补充一条评论');
+    await tester.tap(find.text('发送评论'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('一起补充一条评论'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    final firstPhoto = find.text('家庭 照片 1').first;
+    await tester.ensureVisible(firstPhoto);
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getTopLeft(firstPhoto).translate(12, -58));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byTooltip('弹幕设置'), findsOneWidget);
+    await tester.tap(find.byTooltip('弹幕设置'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('开启弹幕'), findsOneWidget);
+    expect(find.text('弹幕颜色'), findsOneWidget);
+    expect(find.textContaining('透明度'), findsOneWidget);
+    expect(find.textContaining('播放速度'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.drag(find.byType(ListView), const Offset(0, -420));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2026年5月28日'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 420));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('相册详情功能'));
     await tester.pumpAndSettle();
@@ -117,17 +151,41 @@ void main() {
     expect(find.text('关系环'), findsWidgets);
     expect(find.text('场景环'), findsWidgets);
 
-    for (final title in ['家庭 照片 1', '家庭 照片 2', '家庭 照片 3']) {
-      final chip = find.text('家庭 · $title').first;
-      await tester.ensureVisible(chip);
-      await tester.pumpAndSettle();
-      await tester.tap(chip);
-      await tester.pumpAndSettle();
+    for (var ringIndex = 0; ringIndex < 3; ringIndex++) {
+      for (final title in ['家庭 照片 1', '家庭 照片 2', '家庭 照片 3']) {
+        final chip = find.text('家庭 · $title').at(ringIndex);
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
+        await tester.tap(chip);
+        await tester.pumpAndSettle();
+      }
     }
 
-    expect(find.text('3/10'), findsOneWidget);
-    expect(find.text('三色环分析草稿'), findsOneWidget);
+    expect(find.text('3/10'), findsWidgets);
+    expect(find.text('画像与匹配已生成'), findsOneWidget);
     expect(find.textContaining('图片分析'), findsWidgets);
-    expect(find.textContaining('用户画像'), findsOneWidget);
+    expect(find.text('用户画像：稳定型社交记忆用户'), findsOneWidget);
+    expect(find.text('同频匹配推荐'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('同频匹配推荐'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('加好友').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('已加好友'), findsOneWidget);
+    expect(find.text('1 位好友'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.ensureVisible(find.text('好友分享'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '分享一张今日照片');
+    await tester.tap(find.text('选择图片'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('分享给好友'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('分享给好友'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('已向好友分享图片和文字'), findsOneWidget);
   });
 }
